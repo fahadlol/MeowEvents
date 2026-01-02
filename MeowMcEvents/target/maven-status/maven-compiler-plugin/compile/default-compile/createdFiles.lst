@@ -1,0 +1,12 @@
+me\oblueberrey\meowMcEvents\gui\EventGUI.class
+me\oblueberrey\meowMcEvents\managers\BorderManager.class
+me\oblueberrey\meowMcEvents\utils\ConfigManager.class
+me\oblueberrey\meowMcEvents\managers\EventManager.class
+me\oblueberrey\meowMcEvents\listeners\BlockListener.class
+me\oblueberrey\meowMcEvents\MeowMCEvents.class
+me\oblueberrey\meowMcEvents\commands\MeowEventCommand.class
+me\oblueberrey\meowMcEvents\listeners\PlayerDeathListener.class
+me\oblueberrey\meowMcEvents\listeners\PlayerQuitListener.class
+me\oblueberrey\meowMcEvents\managers\TeamManager.class
+me\oblueberrey\meowMcEvents\managers\KitManager.class
+me\oblueberrey\meowMcEvents\managers\RankManager.class

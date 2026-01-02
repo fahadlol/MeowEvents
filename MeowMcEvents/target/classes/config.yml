@@ -1,0 +1,38 @@
+# MeowMCEvents Configuration v1.0
+# Compatible with XyrisKits, Paper, Spigot, Purpur 1.21.4
+
+border:
+  start-size: 300
+  shrink-to: 50
+  interval-seconds: 30
+
+game:
+  allow-building: false
+  allow-breaking: false
+
+spawn:
+  world: world
+  x: 0.0
+  y: 64.0
+  z: 0.0
+  yaw: 0.0
+  pitch: 0.0
+
+kit:
+  selected: default
+
+messages:
+  event-start: "&a&l[MeowEvent] &eEvent has started! Last player/team standing wins!"
+  event-stop: "&c&l[MeowEvent] &eEvent has been stopped."
+  winner-solo: "&6&l[MeowEvent] &e%player% &ahas won the event!"
+  winner-team: "&6&l[MeowEvent] &aTeam %team% &ehas won the event!"
+  kill-broadcast: "&c%killer% &7[Rank: %rank%] &eeliminated &c%victim%"
+  border-shrink: "&e&l[Border] &7World border shrinking to &e%size%x%size%"
+  not-enough-players: "&c&l[MeowEvent] &eNeed at least 2 players to start!"
+  already-running: "&c&l[MeowEvent] &eAn event is already running!"
+  kit-not-available: "&c&l[MeowEvent] &eXyrisKits not found! Kit features disabled."
+
+advanced:
+  default-mode: 1
+  min-players: 2
+  debug: false
