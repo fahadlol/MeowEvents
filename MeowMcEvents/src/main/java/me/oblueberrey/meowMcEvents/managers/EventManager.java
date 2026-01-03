@@ -19,7 +19,8 @@ public class EventManager {
     private boolean buildingAllowed;
     private boolean breakingAllowed;
     private int teamSize;
-    private Set<UUID> alivePlayers;
+    private Set<UUID> joinedPlayers; // Players who joined with /event
+    private Set<UUID> alivePlayers; // Players currently alive in event
     private BukkitTask winnerCheckTask;
 
     public EventManager(MeowMCEvents plugin, TeamManager teamManager,
@@ -32,8 +33,51 @@ public class EventManager {
         this.eventRunning = false;
         this.buildingAllowed = plugin.getConfigManager().isDefaultBuildingAllowed();
         this.breakingAllowed = plugin.getConfigManager().isDefaultBreakingAllowed();
-        this.teamSize = 1; // Default 1v1 (solo mode)
+        this.teamSize = plugin.getConfigManager().getDefaultMode(); // Load from config
+        this.joinedPlayers = new HashSet<>();
         this.alivePlayers = new HashSet<>();
+
+        if (plugin.getConfigManager().shouldLogEvents()) {
+            plugin.getLogger().info("[DEBUG:EVENT] EventManager initialized. Default mode: " + teamSize + ", Building: " + buildingAllowed + ", Breaking: " + breakingAllowed);
+        }
+    }
+
+    /**
+     * Add player to event queue
+     */
+    public void addPlayer(Player player) {
+        joinedPlayers.add(player.getUniqueId());
+        if (plugin.getConfigManager().shouldLogPlayers()) {
+            plugin.getLogger().info("[DEBUG:PLAYER] " + player.getName() + " joined event queue. Total queued: " + joinedPlayers.size());
+        }
+    }
+
+    /**
+     * Remove player from event
+     */
+    public void removePlayer(Player player) {
+        UUID uuid = player.getUniqueId();
+        joinedPlayers.remove(uuid);
+        alivePlayers.remove(uuid);
+        teamManager.removeFromTeam(player);
+        rankManager.resetRank(player);
+        if (plugin.getConfigManager().shouldLogPlayers()) {
+            plugin.getLogger().info("[DEBUG:PLAYER] " + player.getName() + " removed from event. Alive: " + alivePlayers.size() + ", Queued: " + joinedPlayers.size());
+        }
+    }
+
+    /**
+     * Check if player has joined the event
+     */
+    public boolean hasPlayerJoined(Player player) {
+        return joinedPlayers.contains(player.getUniqueId());
+    }
+
+    /**
+     * Check if player is currently in the event
+     */
+    public boolean isPlayerInEvent(Player player) {
+        return alivePlayers.contains(player.getUniqueId());
     }
 
     /**
@@ -41,13 +85,29 @@ public class EventManager {
      */
     public void startEvent() {
         if (eventRunning) {
+            if (plugin.getConfigManager().shouldLogEvents()) {
+                plugin.getLogger().info("[DEBUG:EVENT] Attempted to start event but already running");
+            }
             return;
         }
 
-        List<Player> onlinePlayers = new ArrayList<>(Bukkit.getOnlinePlayers());
+        List<Player> players = new ArrayList<>();
+        for (UUID uuid : joinedPlayers) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null && player.isOnline()) {
+                players.add(player);
+            }
+        }
+
+        if (plugin.getConfigManager().shouldLogEvents()) {
+            plugin.getLogger().info("[DEBUG:EVENT] Starting event with " + players.size() + " players");
+        }
 
         // Check minimum player requirement
-        if (onlinePlayers.size() < 2) {
+        if (players.size() < plugin.getConfigManager().getMinPlayers()) {
+            if (plugin.getConfigManager().shouldLogEvents()) {
+                plugin.getLogger().info("[DEBUG:EVENT] Not enough players. Required: " + plugin.getConfigManager().getMinPlayers() + ", Got: " + players.size());
+            }
             Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
                     plugin.getConfigManager().getMessage("not-enough-players")));
             return;
@@ -58,21 +118,41 @@ public class EventManager {
         alivePlayers.clear();
         rankManager.clearAllRanks();
 
-        // Assign teams if team size > 1
-        if (teamSize > 1) {
-            teamManager.assignTeams(onlinePlayers, teamSize);
-        } else {
-            teamManager.clearTeams();
+        if (plugin.getConfigManager().shouldLogEvents()) {
+            plugin.getLogger().info("[DEBUG:EVENT] Event state initialized. Team size: " + teamSize);
         }
 
-        // Teleport all players to spawn
+        // Assign teams if team size > 1
+        if (teamSize > 1) {
+            teamManager.assignTeams(players, teamSize);
+            if (plugin.getConfigManager().shouldLogTeams()) {
+                plugin.getLogger().info("[DEBUG:TEAM] Teams assigned. Total teams: " + teamManager.getTeamCount());
+            }
+        } else {
+            teamManager.clearTeams();
+            if (plugin.getConfigManager().shouldLogTeams()) {
+                plugin.getLogger().info("[DEBUG:TEAM] Solo mode - no teams");
+            }
+        }
+
+        // Teleport all joined players to spawn and give kits
         Location spawn = plugin.getConfigManager().getSpawnLocation();
-        for (Player player : onlinePlayers) {
+        if (spawn == null || spawn.getWorld() == null) {
+            plugin.getLogger().severe("[ERROR] Spawn location or world is null! Check config.yml spawn settings.");
+            eventRunning = false;
+            return;
+        }
+
+        if (plugin.getConfigManager().shouldLogEvents()) {
+            plugin.getLogger().info("[DEBUG:EVENT] Teleporting players to spawn: " + spawn.getWorld().getName() + " at " + spawn.getBlockX() + ", " + spawn.getBlockY() + ", " + spawn.getBlockZ());
+        }
+
+        for (Player player : players) {
             player.teleport(spawn);
             alivePlayers.add(player.getUniqueId());
 
-            // Give kit using XyrisKits API
-            kitManager.giveKit(player);
+            // Give kit via command
+            kitManager.giveSelectedKit(player);
 
             // Send team notification if in team mode
             if (teamSize > 1) {
@@ -92,12 +172,16 @@ public class EventManager {
                 plugin.getConfigManager().getMessage("event-start")));
 
         // Play sound
-        for (Player player : onlinePlayers) {
+        for (Player player : players) {
             player.playSound(player.getLocation(), Sound.ENTITY_ENDER_DRAGON_GROWL, 1.0f, 1.0f);
         }
 
         // Start winner check task (runs every second)
         startWinnerCheckTask();
+
+        if (plugin.getConfigManager().shouldLogEvents()) {
+            plugin.getLogger().info("[DEBUG:EVENT] Event started successfully. Alive players: " + alivePlayers.size());
+        }
     }
 
     /**
@@ -105,7 +189,14 @@ public class EventManager {
      */
     public void stopEvent() {
         if (!eventRunning) {
+            if (plugin.getConfigManager().shouldLogEvents()) {
+                plugin.getLogger().info("[DEBUG:EVENT] Attempted to stop event but no event running");
+            }
             return;
+        }
+
+        if (plugin.getConfigManager().shouldLogEvents()) {
+            plugin.getLogger().info("[DEBUG:EVENT] Stopping event. Alive players before cleanup: " + alivePlayers.size());
         }
 
         eventRunning = false;
@@ -116,18 +207,42 @@ public class EventManager {
             winnerCheckTask = null;
         }
 
-        // Reset border
-        World world = plugin.getServer().getWorlds().get(0);
+        // Reset border - use spawn location world instead of first world
+        Location spawn = plugin.getConfigManager().getSpawnLocation();
+        World world = spawn != null && spawn.getWorld() != null ? spawn.getWorld() : plugin.getServer().getWorlds().get(0);
         borderManager.resetBorder(world);
 
-        // Clear teams and ranks
+        // Teleport all alive players back to player spawn
+        Location playerSpawn = plugin.getConfigManager().getPlayerSpawnLocation();
+        if (playerSpawn == null || playerSpawn.getWorld() == null) {
+            plugin.getLogger().warning("[WARNING] Player spawn location is null! Players may not be teleported correctly.");
+        }
+
+        for (UUID uuid : alivePlayers) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null && player.isOnline()) {
+                if (playerSpawn != null && playerSpawn.getWorld() != null) {
+                    player.teleport(playerSpawn);
+                }
+                player.getInventory().clear();
+                player.setHealth(20.0);
+                player.setFoodLevel(20);
+            }
+        }
+
+        // Clear teams, ranks, and players
         teamManager.clearTeams();
         rankManager.clearAllRanks();
+        joinedPlayers.clear();
         alivePlayers.clear();
 
         // Broadcast stop message
         Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
                 plugin.getConfigManager().getMessage("event-stop")));
+
+        if (plugin.getConfigManager().shouldLogEvents()) {
+            plugin.getLogger().info("[DEBUG:EVENT] Event stopped and cleaned up successfully");
+        }
     }
 
     /**
@@ -150,29 +265,52 @@ public class EventManager {
         if (teamManager.isTeamMode()) {
             int aliveTeams = teamManager.getAliveTeamCount(alivePlayers);
 
+            if (plugin.getConfigManager().shouldLogEvents()) {
+                plugin.getLogger().info("[DEBUG:EVENT] Winner check - Team mode. Alive teams: " + aliveTeams + ", Alive players: " + alivePlayers.size());
+            }
+
             if (aliveTeams <= 1) {
                 int winningTeam = teamManager.getWinningTeam(alivePlayers);
                 if (winningTeam != -1) {
+                    if (plugin.getConfigManager().shouldLogEvents()) {
+                        plugin.getLogger().info("[DEBUG:EVENT] Team winner detected: Team " + winningTeam);
+                    }
                     announceTeamWinner(winningTeam);
                 } else {
                     // No teams left, stop event
+                    if (plugin.getConfigManager().shouldLogEvents()) {
+                        plugin.getLogger().info("[DEBUG:EVENT] No teams left, stopping event");
+                    }
                     stopEvent();
                 }
             }
         }
         // Solo mode: check if only one player is alive
         else {
+            if (plugin.getConfigManager().shouldLogEvents()) {
+                plugin.getLogger().info("[DEBUG:EVENT] Winner check - Solo mode. Alive players: " + alivePlayers.size());
+            }
+
             if (alivePlayers.size() <= 1) {
                 if (alivePlayers.size() == 1) {
                     UUID winnerUUID = alivePlayers.iterator().next();
                     Player winner = Bukkit.getPlayer(winnerUUID);
                     if (winner != null) {
+                        if (plugin.getConfigManager().shouldLogEvents()) {
+                            plugin.getLogger().info("[DEBUG:EVENT] Solo winner detected: " + winner.getName());
+                        }
                         announceSoloWinner(winner);
                     } else {
+                        if (plugin.getConfigManager().shouldLogEvents()) {
+                            plugin.getLogger().info("[DEBUG:EVENT] Winner player is offline, stopping event");
+                        }
                         stopEvent();
                     }
                 } else {
                     // No winner (everyone died somehow)
+                    if (plugin.getConfigManager().shouldLogEvents()) {
+                        plugin.getLogger().info("[DEBUG:EVENT] No players left, stopping event");
+                    }
                     stopEvent();
                 }
             }
@@ -211,8 +349,22 @@ public class EventManager {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             World world = plugin.getServer().getWorlds().get(0);
             borderManager.resetBorder(world);
+
+            // Teleport all players back
+            Location playerSpawn = plugin.getConfigManager().getPlayerSpawnLocation();
+            for (UUID uuid : alivePlayers) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null && player.isOnline()) {
+                    player.teleport(playerSpawn);
+                    player.getInventory().clear();
+                    player.setHealth(20.0);
+                    player.setFoodLevel(20);
+                }
+            }
+
             teamManager.clearTeams();
             rankManager.clearAllRanks();
+            joinedPlayers.clear();
             alivePlayers.clear();
 
             Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
@@ -253,8 +405,22 @@ public class EventManager {
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
             World world = plugin.getServer().getWorlds().get(0);
             borderManager.resetBorder(world);
+
+            // Teleport all players back
+            Location playerSpawn = plugin.getConfigManager().getPlayerSpawnLocation();
+            for (UUID uuid : alivePlayers) {
+                Player player = Bukkit.getPlayer(uuid);
+                if (player != null && player.isOnline()) {
+                    player.teleport(playerSpawn);
+                    player.getInventory().clear();
+                    player.setHealth(20.0);
+                    player.setFoodLevel(20);
+                }
+            }
+
             teamManager.clearTeams();
             rankManager.clearAllRanks();
+            joinedPlayers.clear();
             alivePlayers.clear();
 
             Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
@@ -282,6 +448,9 @@ public class EventManager {
      */
     public void markPlayerDead(Player player) {
         alivePlayers.remove(player.getUniqueId());
+        if (plugin.getConfigManager().shouldLogPlayers()) {
+            plugin.getLogger().info("[DEBUG:PLAYER] " + player.getName() + " marked as dead. Remaining alive: " + alivePlayers.size());
+        }
     }
 
     /**
@@ -324,5 +493,9 @@ public class EventManager {
 
     public void setTeamSize(int teamSize) {
         this.teamSize = teamSize;
+    }
+
+    public int getJoinedPlayerCount() {
+        return joinedPlayers.size();
     }
 }

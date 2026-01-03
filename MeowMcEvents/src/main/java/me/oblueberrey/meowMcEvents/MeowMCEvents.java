@@ -1,14 +1,8 @@
 package me.oblueberrey.meowMcEvents;
 
-import me.oblueberrey.meowMcEvents.commands.MeowEventCommand;
-import me.oblueberrey.meowMcEvents.listeners.BlockListener;
-import me.oblueberrey.meowMcEvents.listeners.PlayerDeathListener;
-import me.oblueberrey.meowMcEvents.listeners.PlayerQuitListener;
-import me.oblueberrey.meowMcEvents.managers.BorderManager;
-import me.oblueberrey.meowMcEvents.managers.EventManager;
-import me.oblueberrey.meowMcEvents.managers.KitManager;
-import me.oblueberrey.meowMcEvents.managers.RankManager;
-import me.oblueberrey.meowMcEvents.managers.TeamManager;
+import me.oblueberrey.meowMcEvents.commands.*;
+import me.oblueberrey.meowMcEvents.listeners.*;
+import me.oblueberrey.meowMcEvents.managers.*;
 import me.oblueberrey.meowMcEvents.utils.ConfigManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -21,48 +15,40 @@ public class MeowMCEvents extends JavaPlugin {
     private BorderManager borderManager;
     private ConfigManager configManager;
     private KitManager kitManager;
-    private boolean xyrisKitsEnabled = false;
 
     @Override
     public void onEnable() {
         instance = this;
 
-        // Check if XyrisKits is loaded
-        if (getServer().getPluginManager().getPlugin("XyrisKits") != null) {
-            try {
-                Class<?> apiClass = Class.forName("dev.darkxx.xyriskits.api.XyrisKitsAPI");
-                apiClass.getMethod("initialize").invoke(null);
-                xyrisKitsEnabled = true;
-                getLogger().info("Successfully hooked into XyrisKits!");
-            } catch (Exception e) {
-                getLogger().warning("XyrisKits found but failed to initialize API: " + e.getMessage());
-                getLogger().warning("Kit features will be disabled.");
-            }
-        } else {
-            getLogger().warning("XyrisKits not found! Kit features will be disabled.");
-            getLogger().warning("Install XyrisKits to use kit selection: /meowevent kit <name>");
-        }
-
-        //  config
+        // Initialize config
         configManager = new ConfigManager(this);
         configManager.loadConfig();
 
-        //  managers
+        // Initialize managers
         teamManager = new TeamManager();
         rankManager = new RankManager();
         borderManager = new BorderManager(this);
         kitManager = new KitManager(this);
         eventManager = new EventManager(this, teamManager, rankManager, borderManager, kitManager);
 
-        // commands
+        // Register commands
         getCommand("meowevent").setExecutor(new MeowEventCommand(this, eventManager));
+        getCommand("event").setExecutor(new EventJoinCommand(this, eventManager));
+        getCommand("leave").setExecutor(new LeaveCommand(this, eventManager));
+        getCommand("kits").setExecutor(new KitsCommand(this, eventManager));
 
-        //  listeners
-        getServer().getPluginManager().registerEvents(new PlayerDeathListener(eventManager, rankManager), this);
+        // Register listeners
+        getServer().getPluginManager().registerEvents(new PlayerDeathListener(this, eventManager, rankManager), this);
         getServer().getPluginManager().registerEvents(new PlayerQuitListener(eventManager, teamManager), this);
         getServer().getPluginManager().registerEvents(new BlockListener(eventManager), this);
+        getServer().getPluginManager().registerEvents(new CommandBlockListener(this, eventManager), this);
 
         getLogger().info("MeowMCEvents v1.0 has been enabled!");
+        getLogger().info("Loaded " + kitManager.getKitNames().size() + " kits from config");
+
+        if (configManager.isDebugEnabled()) {
+            getLogger().info("[DEBUG] Debug mode is ENABLED - detailed logging will be shown in console");
+        }
     }
 
     @Override
@@ -101,9 +87,5 @@ public class MeowMCEvents extends JavaPlugin {
 
     public KitManager getKitManager() {
         return kitManager;
-    }
-
-    public boolean isXyrisKitsEnabled() {
-        return xyrisKitsEnabled;
     }
 }

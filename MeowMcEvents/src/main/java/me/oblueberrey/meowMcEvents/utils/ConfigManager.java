@@ -54,6 +54,17 @@ public class ConfigManager {
         return new Location(plugin.getServer().getWorld(worldName), x, y, z, yaw, pitch);
     }
 
+    public Location getPlayerSpawnLocation() {
+        String worldName = config.getString("player-spawn.world", "world");
+        double x = config.getDouble("player-spawn.x", 0.0);
+        double y = config.getDouble("player-spawn.y", 64.0);
+        double z = config.getDouble("player-spawn.z", 0.0);
+        float yaw = (float) config.getDouble("player-spawn.yaw", 0.0);
+        float pitch = (float) config.getDouble("player-spawn.pitch", 0.0);
+
+        return new Location(plugin.getServer().getWorld(worldName), x, y, z, yaw, pitch);
+    }
+
     public void setSpawnLocation(Location location) {
         config.set("spawn.world", location.getWorld().getName());
         config.set("spawn.x", location.getX());
@@ -64,18 +75,19 @@ public class ConfigManager {
         plugin.saveConfig();
     }
 
+    public void setPlayerSpawnLocation(Location location) {
+        config.set("player-spawn.world", location.getWorld().getName());
+        config.set("player-spawn.x", location.getX());
+        config.set("player-spawn.y", location.getY());
+        config.set("player-spawn.z", location.getZ());
+        config.set("player-spawn.yaw", location.getYaw());
+        config.set("player-spawn.pitch", location.getPitch());
+        plugin.saveConfig();
+    }
+
     public void reload() {
         plugin.reloadConfig();
         config = plugin.getConfig();
-    }
-
-    public String getDefaultKit() {
-        return config.getString("kit.selected", "default");
-    }
-
-    public void setDefaultKit(String kitName) {
-        config.set("kit.selected", kitName);
-        plugin.saveConfig();
     }
 
     public int getDefaultMode() {
@@ -87,6 +99,30 @@ public class ConfigManager {
     }
 
     public boolean isDebugEnabled() {
-        return config.getBoolean("advanced.debug", false);
+        return config.getBoolean("debug.enabled", false);
+    }
+
+    public boolean shouldLogEvents() {
+        return isDebugEnabled() && config.getBoolean("debug.log-events", true);
+    }
+
+    public boolean shouldLogPlayers() {
+        return isDebugEnabled() && config.getBoolean("debug.log-players", true);
+    }
+
+    public boolean shouldLogTeams() {
+        return isDebugEnabled() && config.getBoolean("debug.log-teams", true);
+    }
+
+    public boolean shouldLogBorder() {
+        return isDebugEnabled() && config.getBoolean("debug.log-border", true);
+    }
+
+    public boolean shouldLogKits() {
+        return isDebugEnabled() && config.getBoolean("debug.log-kits", true);
+    }
+
+    public boolean shouldLogGui() {
+        return isDebugEnabled() && config.getBoolean("debug.log-gui", true);
     }
 }

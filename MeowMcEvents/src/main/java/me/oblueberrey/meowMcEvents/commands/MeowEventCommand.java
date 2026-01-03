@@ -55,10 +55,20 @@ public class MeowEventCommand implements CommandExecutor, TabCompleter {
                 handleStop(player);
                 break;
 
+            case "setspawn":
+            case "spawn":
+                handleSetSpawn(player);
+                break;
+
+            case "setplayerspawn":
+            case "playerspawn":
+                handleSetPlayerSpawn(player);
+                break;
+
             case "team":
                 if (args.length < 2) {
                     player.sendMessage(ChatColor.RED + "Usage: /meowevent team <size>");
-                    player.sendMessage(ChatColor.YELLOW + "Valid sizes: 2, 3, 4, 5 (for 2v2, 3v3, 4v4, 5v5)");
+                    player.sendMessage(ChatColor.YELLOW + "Valid sizes: 1 (Solo), 2-5 (Teams)");
                     return true;
                 }
                 handleTeamSize(player, args[1]);
@@ -75,6 +85,14 @@ public class MeowEventCommand implements CommandExecutor, TabCompleter {
 
             case "help":
                 sendHelpMessage(player);
+                break;
+
+            case "reload":
+                handleReload(player);
+                break;
+
+            case "debug":
+                handleDebugToggle(player);
                 break;
 
             default:
@@ -96,6 +114,10 @@ public class MeowEventCommand implements CommandExecutor, TabCompleter {
                     plugin.getConfigManager().getMessage("already-running")));
             return;
         }
+
+        int joined = eventManager.getJoinedPlayerCount();
+        player.sendMessage(ChatColor.YELLOW + "Starting event with " + joined + " player(s)...");
+        player.sendMessage(ChatColor.GRAY + "Selected kit: " + ChatColor.GOLD + plugin.getKitManager().getSelectedKit());
 
         eventManager.startEvent();
     }
@@ -128,15 +150,19 @@ public class MeowEventCommand implements CommandExecutor, TabCompleter {
                 " Z: " + (int)player.getLocation().getZ());
     }
 
-    private void handleKitSelection(Player player, String kitName) {
+    private void handleSetPlayerSpawn(Player player) {
         if (!player.hasPermission("meowevent.admin")) {
-            player.sendMessage(ChatColor.RED + "You need admin permission to select kits!");
+            player.sendMessage(ChatColor.RED + "You need admin permission to set player spawn!");
             return;
         }
 
-        plugin.getKitManager().setSelectedKit(kitName);
-        player.sendMessage(ChatColor.GREEN + "Event kit set to: " + ChatColor.YELLOW + kitName);
-        player.sendMessage(ChatColor.GRAY + "This kit will be given to all players when the event starts.");
+        plugin.getConfigManager().setPlayerSpawnLocation(player.getLocation());
+        player.sendMessage(ChatColor.GREEN + "Player spawn set to your current location!");
+        player.sendMessage(ChatColor.GRAY + "Players will be teleported here when they die or leave");
+        player.sendMessage(ChatColor.GRAY + "World: " + player.getWorld().getName());
+        player.sendMessage(ChatColor.GRAY + "X: " + (int)player.getLocation().getX() +
+                " Y: " + (int)player.getLocation().getY() +
+                " Z: " + (int)player.getLocation().getZ());
     }
 
     private void handleTeamSize(Player player, String sizeArg) {
@@ -189,15 +215,53 @@ public class MeowEventCommand implements CommandExecutor, TabCompleter {
         }
     }
 
+    private void handleReload(Player player) {
+        if (!player.hasPermission("meowevent.admin")) {
+            player.sendMessage(ChatColor.RED + "You need admin permission to reload config!");
+            return;
+        }
+
+        plugin.getConfigManager().reload();
+        player.sendMessage(ChatColor.GREEN + "MeowMCEvents config reloaded!");
+
+        if (plugin.getConfigManager().isDebugEnabled()) {
+            player.sendMessage(ChatColor.YELLOW + "Debug mode is currently ENABLED");
+        } else {
+            player.sendMessage(ChatColor.GRAY + "Debug mode is currently disabled");
+        }
+    }
+
+    private void handleDebugToggle(Player player) {
+        if (!player.hasPermission("meowevent.admin")) {
+            player.sendMessage(ChatColor.RED + "You need admin permission to toggle debug!");
+            return;
+        }
+
+        boolean currentState = plugin.getConfigManager().isDebugEnabled();
+        plugin.getConfig().set("debug.enabled", !currentState);
+        plugin.saveConfig();
+        plugin.getConfigManager().reload();
+
+        if (!currentState) {
+            player.sendMessage(ChatColor.GREEN + "Debug mode ENABLED - check console for detailed logs");
+            plugin.getLogger().info("[DEBUG] Debug mode enabled by " + player.getName());
+        } else {
+            player.sendMessage(ChatColor.YELLOW + "Debug mode DISABLED");
+        }
+    }
+
     private void sendHelpMessage(Player player) {
         player.sendMessage(ChatColor.GOLD + "========== " + ChatColor.YELLOW + "MeowMCEvents Help" + ChatColor.GOLD + " ==========");
         player.sendMessage(ChatColor.YELLOW + "/meowevent" + ChatColor.GRAY + " - Open event GUI");
         player.sendMessage(ChatColor.YELLOW + "/meowevent start" + ChatColor.GRAY + " - Start an event");
         player.sendMessage(ChatColor.YELLOW + "/meowevent stop" + ChatColor.GRAY + " - Stop current event");
         player.sendMessage(ChatColor.YELLOW + "/meowevent setspawn" + ChatColor.GRAY + " - Set event spawn point");
-        player.sendMessage(ChatColor.YELLOW + "/meowevent kit <name>" + ChatColor.GRAY + " - Select event kit");
+        player.sendMessage(ChatColor.YELLOW + "/meowevent setplayerspawn" + ChatColor.GRAY + " - Set player respawn point");
         player.sendMessage(ChatColor.YELLOW + "/meowevent team <size>" + ChatColor.GRAY + " - Set mode (1=Solo, 2-5=Teams)");
         player.sendMessage(ChatColor.YELLOW + "/meowevent border <seconds>" + ChatColor.GRAY + " - Set border shrink interval");
+        player.sendMessage(ChatColor.YELLOW + "/meowevent reload" + ChatColor.GRAY + " - Reload configuration");
+        player.sendMessage(ChatColor.YELLOW + "/meowevent debug" + ChatColor.GRAY + " - Toggle debug mode");
+        player.sendMessage(ChatColor.YELLOW + "/kits" + ChatColor.GRAY + " - Select event kit");
         player.sendMessage(ChatColor.YELLOW + "/meowevent help" + ChatColor.GRAY + " - Show this help message");
         player.sendMessage(ChatColor.GOLD + "=========================================");
     }
@@ -207,7 +271,7 @@ public class MeowEventCommand implements CommandExecutor, TabCompleter {
         List<String> completions = new ArrayList<>();
 
         if (args.length == 1) {
-            List<String> subcommands = Arrays.asList("start", "stop", "setspawn", "kit", "team", "border", "help");
+            List<String> subcommands = Arrays.asList("start", "stop", "setspawn", "setplayerspawn", "team", "border", "reload", "debug", "help");
             String input = args[0].toLowerCase();
 
             for (String subcommand : subcommands) {

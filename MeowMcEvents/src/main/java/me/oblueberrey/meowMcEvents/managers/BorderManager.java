@@ -27,6 +27,12 @@ public class BorderManager {
         this.currentSize = startSize;
     }
 
+    private void debug(String message) {
+        if (plugin.getConfigManager().shouldLogBorder()) {
+            plugin.getLogger().info("[DEBUG:BORDER] " + message);
+        }
+    }
+
     /**
      * Start the border shrinking task
      * Centers border at spawn location and begins shrinking every interval
@@ -34,6 +40,7 @@ public class BorderManager {
     public void startBorderShrink(World world, Location center) {
         if (world == null || center == null) {
             plugin.getLogger().warning("Cannot start border shrink: world or center is null");
+            debug("startBorderShrink failed - world=" + (world == null ? "null" : world.getName()) + ", center=" + (center == null ? "null" : "valid"));
             return;
         }
 
@@ -45,12 +52,14 @@ public class BorderManager {
         originalBorderSize = border.getSize();
         originalCenter = border.getCenter();
 
+        debug("Saved original border: size=" + originalBorderSize + ", center=" + (originalCenter != null ? originalCenter.getBlockX() + "," + originalCenter.getBlockZ() : "null"));
+
         // Set initial border
         border.setCenter(center);
         border.setSize(startSize);
         currentSize = startSize;
 
-        plugin.getLogger().info("Border initialized at " + startSize + "x" + startSize);
+        debug("Border initialized at " + startSize + "x" + startSize + " centered at " + center.getBlockX() + "," + center.getBlockZ());
 
         // Calculate shrink amount per interval
         int totalShrinks = (startSize - minSize) / 10; // Shrink by 10 blocks each time
@@ -58,9 +67,12 @@ public class BorderManager {
 
         final int shrinkAmount = Math.max(10, (startSize - minSize) / totalShrinks);
 
+        debug("Shrink settings: interval=" + shrinkInterval + "s, amount=" + shrinkAmount + " blocks, minSize=" + minSize);
+
         // Start repeating task (runs every X seconds)
         shrinkTask = Bukkit.getScheduler().runTaskTimer(plugin, () -> {
             if (currentSize > minSize) {
+                int previousSize = currentSize;
                 currentSize = Math.max(minSize, currentSize - shrinkAmount);
 
                 // Smooth shrink over the interval duration (prevents teleport glitches)
@@ -71,11 +83,11 @@ public class BorderManager {
                         .replace("%size%", String.valueOf(currentSize));
                 Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&', message));
 
-                plugin.getLogger().info("Border shrinking to " + currentSize + "x" + currentSize);
+                debug("Border shrinking: " + previousSize + " -> " + currentSize);
             } else {
                 // Minimum size reached, keep border at minimum
                 border.setSize(minSize);
-                plugin.getLogger().info("Border reached minimum size: " + minSize);
+                debug("Border reached minimum size: " + minSize);
             }
         }, shrinkInterval * 20L, shrinkInterval * 20L); // Convert seconds to ticks
     }
@@ -87,7 +99,7 @@ public class BorderManager {
         if (shrinkTask != null) {
             shrinkTask.cancel();
             shrinkTask = null;
-            plugin.getLogger().info("Border shrinking task stopped");
+            debug("Border shrinking task stopped");
         }
     }
 
@@ -98,9 +110,11 @@ public class BorderManager {
     public void resetBorder(World world) {
         if (world == null) {
             plugin.getLogger().warning("Cannot reset border: world is null");
+            debug("resetBorder failed - world is null");
             return;
         }
 
+        debug("Resetting border for world: " + world.getName());
         stopBorderShrink();
 
         WorldBorder border = world.getWorldBorder();
@@ -108,18 +122,22 @@ public class BorderManager {
         // Restore original settings or use default
         if (originalCenter != null) {
             border.setCenter(originalCenter);
+            debug("Restored original center: " + originalCenter.getBlockX() + "," + originalCenter.getBlockZ());
         } else {
             border.setCenter(0, 0);
+            debug("No original center saved, using 0,0");
         }
 
         if (originalBorderSize > 0) {
             border.setSize(originalBorderSize);
+            debug("Restored original size: " + originalBorderSize);
         } else {
             border.setSize(59999968); // Default Minecraft border size
+            debug("No original size saved, using default: 59999968");
         }
 
         currentSize = startSize;
-        plugin.getLogger().info("Border reset to default settings");
+        debug("Border reset complete. currentSize reset to: " + startSize);
     }
 
     /**

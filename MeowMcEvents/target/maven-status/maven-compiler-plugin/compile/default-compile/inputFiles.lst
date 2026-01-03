@@ -1,6 +1,11 @@
+C:\Users\fahad\IdeaProjects\Tutorials\MeowMcEvents\src\main\java\me\oblueberrey\meowMcEvents\commands\EventJoinCommand.java
+C:\Users\fahad\IdeaProjects\Tutorials\MeowMcEvents\src\main\java\me\oblueberrey\meowMcEvents\commands\KitsCommand.java
+C:\Users\fahad\IdeaProjects\Tutorials\MeowMcEvents\src\main\java\me\oblueberrey\meowMcEvents\commands\LeaveCommand.java
 C:\Users\fahad\IdeaProjects\Tutorials\MeowMcEvents\src\main\java\me\oblueberrey\meowMcEvents\commands\MeowEventCommand.java
 C:\Users\fahad\IdeaProjects\Tutorials\MeowMcEvents\src\main\java\me\oblueberrey\meowMcEvents\gui\EventGUI.java
+C:\Users\fahad\IdeaProjects\Tutorials\MeowMcEvents\src\main\java\me\oblueberrey\meowMcEvents\gui\KitsGUI.java
 C:\Users\fahad\IdeaProjects\Tutorials\MeowMcEvents\src\main\java\me\oblueberrey\meowMcEvents\listeners\BlockListener.java
+C:\Users\fahad\IdeaProjects\Tutorials\MeowMcEvents\src\main\java\me\oblueberrey\meowMcEvents\listeners\CommandBlockListener.java
 C:\Users\fahad\IdeaProjects\Tutorials\MeowMcEvents\src\main\java\me\oblueberrey\meowMcEvents\listeners\PlayerDeathListener.java
 C:\Users\fahad\IdeaProjects\Tutorials\MeowMcEvents\src\main\java\me\oblueberrey\meowMcEvents\listeners\PlayerQuitListener.java
 C:\Users\fahad\IdeaProjects\Tutorials\MeowMcEvents\src\main\java\me\oblueberrey\meowMcEvents\managers\BorderManager.java

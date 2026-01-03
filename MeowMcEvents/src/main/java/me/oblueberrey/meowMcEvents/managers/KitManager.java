@@ -1,7 +1,11 @@
 package me.oblueberrey.meowMcEvents.managers;
 
 import me.oblueberrey.meowMcEvents.MeowMCEvents;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+
+import java.util.List;
 
 public class KitManager {
 
@@ -10,47 +14,46 @@ public class KitManager {
 
     public KitManager(MeowMCEvents plugin) {
         this.plugin = plugin;
-        // Load default kit from config
-        this.selectedKit = plugin.getConfigManager().getDefaultKit();
-        plugin.getLogger().info("Loaded default kit: " + selectedKit);
+        this.selectedKit = plugin.getConfig().getString("selected-kit", "Warrior");
+    }
+
+    private void debug(String message) {
+        if (plugin.getConfigManager().shouldLogKits()) {
+            plugin.getLogger().info("[DEBUG:KIT] " + message);
+        }
     }
 
     /**
-     * Give a kit to a player using XyrisKits API (via reflection)
+     * Give kit to player by running: /kits give {player} {kit}
      */
-    public void giveKit(Player player) {
-        if (!plugin.isXyrisKitsEnabled()) {
-            plugin.getLogger().warning("Cannot give kit - XyrisKits is not enabled!");
-            return;
-        }
+    public void giveKit(Player player, String kitName) {
+        // Run command: /kits give PlayerName KitName
+        String command = "kits give " + player.getName() + " " + kitName;
+        debug("Executing command: /" + command);
+        Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+        debug("Kit '" + kitName + "' given to " + player.getName());
+    }
 
-        if (selectedKit == null || selectedKit.isEmpty()) {
-            plugin.getLogger().warning("No kit selected! Using default kit.");
-            return;
-        }
+    /**
+     * Give the selected kit to a player
+     */
+    public void giveSelectedKit(Player player) {
+        debug("Giving selected kit '" + selectedKit + "' to " + player.getName());
+        giveKit(player, selectedKit);
 
-        try {
-            // Use reflection to call XyrisKitsAPI.getKitsAPI().giveKit(player, kitName)
-            Class<?> apiClass = Class.forName("dev.darkxx.xyriskits.api.XyrisKitsAPI");
-            Object kitsAPI = apiClass.getMethod("getKitsAPI").invoke(null);
-
-            kitsAPI.getClass().getMethod("giveKit", Player.class, String.class)
-                    .invoke(kitsAPI, player, selectedKit);
-
-            plugin.getLogger().info("Gave kit '" + selectedKit + "' to player " + player.getName());
-        } catch (Exception e) {
-            plugin.getLogger().warning("Failed to give kit '" + selectedKit + "' to " + player.getName() + ": " + e.getMessage());
-            e.printStackTrace();
-        }
+        player.sendMessage(ChatColor.translateAlternateColorCodes('&',
+                plugin.getConfigManager().getMessage("kit-given").replace("%kit%", selectedKit)));
     }
 
     /**
      * Set the kit to be used for events
      */
     public void setSelectedKit(String kitName) {
+        String previousKit = this.selectedKit;
         this.selectedKit = kitName;
-        plugin.getConfigManager().setDefaultKit(kitName);
-        plugin.getLogger().info("Selected kit changed to: " + kitName);
+        plugin.getConfig().set("selected-kit", kitName);
+        plugin.saveConfig();
+        debug("Selected kit changed: " + previousKit + " -> " + kitName);
     }
 
     /**
@@ -61,14 +64,17 @@ public class KitManager {
     }
 
     /**
-     * Check if a kit exists in XyrisKits
+     * Check if a kit exists in config
      */
     public boolean kitExists(String kitName) {
-        try {
-            // Try to check if kit exists (you may need to adjust based on XyrisKits API)
-            return kitName != null && !kitName.isEmpty();
-        } catch (Exception e) {
-            return false;
-        }
+        List<String> kits = getKitNames();
+        return kits.contains(kitName);
+    }
+
+    /**
+     * Get all kit names from config
+     */
+    public List<String> getKitNames() {
+        return plugin.getConfig().getStringList("kits");
     }
 }

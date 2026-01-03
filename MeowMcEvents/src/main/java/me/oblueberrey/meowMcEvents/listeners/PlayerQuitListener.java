@@ -1,5 +1,6 @@
 package me.oblueberrey.meowMcEvents.listeners;
 
+import me.oblueberrey.meowMcEvents.MeowMCEvents;
 import me.oblueberrey.meowMcEvents.managers.EventManager;
 import me.oblueberrey.meowMcEvents.managers.TeamManager;
 import org.bukkit.Bukkit;
@@ -19,25 +20,36 @@ public class PlayerQuitListener implements Listener {
         this.teamManager = teamManager;
     }
 
+    private void debug(String message) {
+        MeowMCEvents plugin = MeowMCEvents.getInstance();
+        if (plugin != null && plugin.getConfigManager().shouldLogPlayers()) {
+            plugin.getLogger().info("[DEBUG:QUIT] " + message);
+        }
+    }
+
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        if (!eventManager.isEventRunning()) {
+        Player player = event.getPlayer();
+
+        // Check if player is in event
+        if (!eventManager.isPlayerInEvent(player)) {
             return;
         }
 
-        Player player = event.getPlayer();
+        debug(player.getName() + " disconnected while in event");
 
         // Broadcast disconnect message
         Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() +
                 ChatColor.GRAY + " disconnected and has been eliminated from the event!");
 
-        // Mark player as dead (disconnect counts as death per MVP spec)
-        eventManager.markPlayerDead(player);
-
-        // Remove from team if in one
-        teamManager.removeFromTeam(player);
+        // Remove player from event
+        eventManager.removePlayer(player);
+        debug(player.getName() + " removed from event due to disconnect");
 
         // Check for winner after disconnect
-        eventManager.checkForWinner();
+        if (eventManager.isEventRunning()) {
+            debug("Checking for winner after " + player.getName() + " disconnect");
+            eventManager.checkForWinner();
+        }
     }
 }

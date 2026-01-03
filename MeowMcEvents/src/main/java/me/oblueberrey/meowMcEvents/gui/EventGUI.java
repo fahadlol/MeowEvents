@@ -21,14 +21,27 @@ public class EventGUI implements Listener {
     private final MeowMCEvents plugin;
     private final EventManager eventManager;
     private static final String GUI_TITLE = ChatColor.DARK_PURPLE + "MeowMC Event Manager";
+    private static boolean listenerRegistered = false;
 
     public EventGUI(MeowMCEvents plugin, EventManager eventManager) {
         this.plugin = plugin;
         this.eventManager = eventManager;
-        plugin.getServer().getPluginManager().registerEvents(this, plugin);
+        // Only register listener once to prevent memory leak
+        if (!listenerRegistered) {
+            plugin.getServer().getPluginManager().registerEvents(this, plugin);
+            listenerRegistered = true;
+            debug("EventGUI listener registered");
+        }
+    }
+
+    private void debug(String message) {
+        if (plugin.getConfigManager().shouldLogGui()) {
+            plugin.getLogger().info("[DEBUG:GUI] " + message);
+        }
     }
 
     public void openGUI(Player player) {
+        debug(player.getName() + " opened Event Manager GUI");
         Inventory gui = Bukkit.createInventory(null, 27, GUI_TITLE);
 
         // Start Event Button (Slot 10)
@@ -39,6 +52,9 @@ public class EventGUI implements Listener {
 
         // Stop Event Button (Slot 14)
         gui.setItem(14, createStopButton());
+
+        // Kit Selection Button (Slot 11) - NEW!
+        gui.setItem(11, createKitButton());
 
         // Team Size Selector (Slot 16)
         gui.setItem(16, createTeamSizeButton());
@@ -108,6 +124,26 @@ public class EventGUI implements Listener {
         } else {
             lore.add(ChatColor.RED + "⚠ No event running");
         }
+
+        meta.setLore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createKitButton() {
+        ItemStack item = new ItemStack(Material.CHEST);
+        ItemMeta meta = item.getItemMeta();
+        meta.setDisplayName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "SELECT KIT");
+
+        String selectedKit = plugin.getKitManager().getSelectedKit();
+
+        List<String> lore = new ArrayList<>();
+        lore.add(ChatColor.GRAY + "Choose which kit players receive");
+        lore.add(ChatColor.GRAY + "when the event starts");
+        lore.add("");
+        lore.add(ChatColor.GRAY + "Current kit: " + ChatColor.GOLD + selectedKit);
+        lore.add("");
+        lore.add(ChatColor.YELLOW + "➤ Click to select kit");
 
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -227,8 +263,23 @@ public class EventGUI implements Listener {
                     player.sendMessage(ChatColor.RED + "You need admin permission!");
                     return;
                 }
+                debug(player.getName() + " clicked START EVENT");
                 player.closeInventory();
                 eventManager.startEvent();
+                break;
+
+            case 11: // Kit Selection - NEW!
+                if (!player.hasPermission("meowevent.admin")) {
+                    player.sendMessage(ChatColor.RED + "You need admin permission!");
+                    return;
+                }
+                debug(player.getName() + " clicked SELECT KIT");
+                player.closeInventory();
+                // Open kits GUI
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    KitsGUI kitsGUI = new KitsGUI(plugin, eventManager, true); // true = return to main menu
+                    kitsGUI.openGUI(player);
+                }, 1L);
                 break;
 
             case 12: // Kill Player
@@ -236,6 +287,7 @@ public class EventGUI implements Listener {
                     player.sendMessage(ChatColor.RED + "You need admin permission!");
                     return;
                 }
+                debug(player.getName() + " clicked KILL PLAYER");
                 openPlayerSelector(player);
                 break;
 
@@ -244,6 +296,7 @@ public class EventGUI implements Listener {
                     player.sendMessage(ChatColor.RED + "You need admin permission!");
                     return;
                 }
+                debug(player.getName() + " clicked STOP EVENT");
                 player.closeInventory();
                 eventManager.stopEvent();
                 break;
@@ -253,6 +306,7 @@ public class EventGUI implements Listener {
                     player.sendMessage(ChatColor.RED + "You need admin permission!");
                     return;
                 }
+                debug(player.getName() + " clicked GAME MODE");
                 cycleTeamSize(player);
                 break;
 
@@ -262,6 +316,7 @@ public class EventGUI implements Listener {
                     return;
                 }
                 eventManager.toggleBuilding();
+                debug(player.getName() + " toggled building to " + eventManager.isBuildingAllowed());
                 player.sendMessage(ChatColor.YELLOW + "Building is now " +
                         (eventManager.isBuildingAllowed() ? ChatColor.GREEN + "ENABLED" : ChatColor.RED + "DISABLED"));
                 updateGUI(player);
@@ -273,6 +328,7 @@ public class EventGUI implements Listener {
                     return;
                 }
                 eventManager.toggleBreaking();
+                debug(player.getName() + " toggled breaking to " + eventManager.isBreakingAllowed());
                 player.sendMessage(ChatColor.YELLOW + "Breaking is now " +
                         (eventManager.isBreakingAllowed() ? ChatColor.GREEN + "ENABLED" : ChatColor.RED + "DISABLED"));
                 updateGUI(player);

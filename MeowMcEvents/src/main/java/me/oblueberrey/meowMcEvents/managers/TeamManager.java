@@ -1,5 +1,6 @@
 package me.oblueberrey.meowMcEvents.managers;
 
+import me.oblueberrey.meowMcEvents.MeowMCEvents;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
@@ -15,6 +16,13 @@ public class TeamManager {
         this.playerTeams = new HashMap<>();
     }
 
+    private void debug(String message) {
+        MeowMCEvents plugin = MeowMCEvents.getInstance();
+        if (plugin != null && plugin.getConfigManager().shouldLogTeams()) {
+            plugin.getLogger().info("[DEBUG:TEAM] " + message);
+        }
+    }
+
     /**
      * Assign players to teams automatically
      * Shuffles players for random assignment
@@ -24,8 +32,11 @@ public class TeamManager {
         clearTeams();
 
         if (players == null || players.isEmpty() || teamSize < 1) {
+            debug("assignTeams called with invalid params: players=" + (players == null ? "null" : players.size()) + ", teamSize=" + teamSize);
             return;
         }
+
+        debug("Assigning " + players.size() + " players to teams of size " + teamSize);
 
         // Shuffle players for random assignment
         List<Player> shuffled = new ArrayList<>(players);
@@ -45,6 +56,8 @@ public class TeamManager {
             team.add(uuid);
             playerTeams.put(uuid, teamNumber);
 
+            debug("Assigned " + player.getName() + " to Team " + teamNumber);
+
             playersInCurrentTeam++;
 
             // Move to next team if current team is full
@@ -53,6 +66,8 @@ public class TeamManager {
                 playersInCurrentTeam = 0;
             }
         }
+
+        debug("Team assignment complete. Total teams: " + teams.size());
     }
 
     /**
@@ -118,10 +133,12 @@ public class TeamManager {
             Set<UUID> team = teams.get(teamNumber);
             if (team != null) {
                 team.remove(uuid);
+                debug("Removed player from Team " + teamNumber + ". Team size now: " + team.size());
 
                 // Remove empty teams
                 if (team.isEmpty()) {
                     teams.remove(teamNumber);
+                    debug("Team " + teamNumber + " is now empty and removed");
                 }
             }
         }
@@ -219,8 +236,11 @@ public class TeamManager {
      * Called when event stops
      */
     public void clearTeams() {
+        int teamCount = teams.size();
+        int playerCount = playerTeams.size();
         teams.clear();
         playerTeams.clear();
+        debug("Cleared all teams. Removed " + teamCount + " teams and " + playerCount + " player assignments");
     }
 
     /**
