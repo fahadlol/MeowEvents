@@ -1,0 +1,40 @@
+name: MeowMCEvents
+version: 1.0
+main: me.oblueberrey.meowMcEvents.MeowMCEvents
+api-version: 1.21
+author: oblueberrey
+description: Simple PvP event plugin with teams and automatic winner detection
+website: https://github.com/oblueberrey/MeowMCEvents
+softdepend: [XyrisKits]
+
+commands:
+  meowevent:
+    description: Opens the event management GUI
+    usage: /meowevent [start|stop|team <size>|border <seconds>]
+    aliases: [me, mevent]
+    permission: meowevent.use
+    permission-message: You do not have permission to use this command
+  event:
+    description: Join the event
+    usage: /event
+    permission: meowevent.join
+    permission-message: You do not have permission to use this command
+  leave:
+    description: Leave the current event
+    usage: /leave
+  kits:
+    description: Open kit selection GUI (admin only)
+    usage: /kits
+    permission: meowevent.admin
+    permission-message: You do not have permission to use this command
+
+permissions:
+  meowevent.use:
+    description: Allows use of the event system
+    default: op
+  meowevent.join:
+    description: Allows joining events
+    default: true
+  meowevent.admin:
+    description: Full access to event management
+    default: op

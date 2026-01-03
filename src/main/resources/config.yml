@@ -1,0 +1,94 @@
+# MeowMCEvents Configuration v1.0
+# Compatible with Paper, Spigot, Purpur 1.21.4
+
+border:
+  # Starting size of the border when event begins
+  start-size: 50
+  # Minimum size the border will shrink to
+  shrink-to: 10
+  # How often the border shrinks (in seconds)
+  interval-seconds: 30
+
+game:
+  allow-building: false
+  allow-breaking: false
+  allow-natural-regen: true
+
+spawn:
+  world: world
+  x: 0.0
+  y: 64.0
+  z: 0.0
+  yaw: 0.0
+  pitch: 0.0
+
+# Event join spawn (where players go when they do /event to join)
+event-spawn:
+  world: world
+  x: 0.0
+  y: 64.0
+  z: 0.0
+  yaw: 0.0
+  pitch: 0.0
+
+# Player spawn point (where players go when they leave or die)
+player-spawn:
+  world: world
+  x: 0.0
+  y: 64.0
+  z: 0.0
+  yaw: 0.0
+  pitch: 0.0
+
+# Kit system - List all your kit names here
+# These are just the names - your external kits plugin handles the actual items
+kits:
+  - Warrior
+  - Archer
+  - Tank
+  - Mage
+  - Assassin
+
+# Selected kit (set by admin before starting event)
+selected-kit: Warrior
+
+messages:
+  event-start: "&a&l[MeowEvent] &eEvent has started! Last player/team standing wins!"
+  event-stop: "&c&l[MeowEvent] &eEvent has been stopped."
+  winner-solo: "&6&l[MeowEvent] &e%player% &ahas won the event!"
+  winner-team: "&6&l[MeowEvent] &aTeam %team% &ehas won the event!"
+  kill-broadcast: "&c%killer% &7[Rank: %rank%] &eeliminated &c%victim%"
+  border-shrink: "&e&l[Border] &7World border shrinking to &e%size%x%size%"
+  not-enough-players: "&c&l[MeowEvent] &eNeed at least 2 players to start!"
+  already-running: "&c&l[MeowEvent] &eAn event is already running!"
+  joined-event: "&a&l[MeowEvent] &eYou joined the event! Wait for it to start."
+  already-joined: "&c&l[MeowEvent] &eYou already joined this event!"
+  left-event: "&c&l[MeowEvent] &eYou have left the event."
+  not-in-event: "&c&l[MeowEvent] &eYou are not in the event!"
+  kit-given: "&a&l[MeowEvent] &eYou received the &a%kit% &ekit!"
+  kit-selected: "&a&l[MeowEvent] &eEvent kit set to &a%kit%&e!"
+  command-blocked: "&c&l[MeowEvent] &eYou cannot use commands during the event!"
+  command-allowed: "&a&l[MeowEvent] &eAllowed commands: /leave"
+
+advanced:
+  default-mode: 1
+  min-players: 2
+  # Countdown time in seconds before event starts (players can join during this time)
+  countdown-seconds: 60
+
+# Debug Settings
+# Enable this to see detailed debug messages in console
+debug:
+  enabled: false
+  # Log event lifecycle (start, stop, winner detection)
+  log-events: true
+  # Log player actions (join, leave, death)
+  log-players: true
+  # Log team assignments and changes
+  log-teams: true
+  # Log border shrinking
+  log-border: true
+  # Log kit distribution
+  log-kits: true
+  # Log GUI interactions
+  log-gui: true
