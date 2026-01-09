@@ -63,8 +63,8 @@ public class LeaveCommand implements CommandExecutor {
             debug(player.getName() + " teleported to player spawn");
         }
 
-        // Clear inventory and reset health if player was in active event
-        if (inActiveEvent) {
+        // Clear inventory and reset health if player was in active event or spectating
+        if (inActiveEvent || isSpectator) {
             player.getInventory().clear();
             player.setHealth(20.0);
             player.setFoodLevel(20);

@@ -41,7 +41,7 @@ player-spawn:
   pitch: 0.0
 
 # Kit system - List all your kit names here
-# These are just the names - your external kits plugin handles the actual items
+# placeholders - xryis  handles the actual items
 kits:
   - Warrior
   - Archer

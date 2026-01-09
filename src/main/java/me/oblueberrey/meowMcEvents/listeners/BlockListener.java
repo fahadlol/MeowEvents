@@ -32,6 +32,12 @@ public class BlockListener implements Listener {
 
         Player player = event.getPlayer();
 
+        // Block spectators from building
+        if (eventManager.isSpectator(player)) {
+            event.setCancelled(true);
+            return;
+        }
+
         // Only apply to players in the event
         if (!eventManager.isPlayerInEvent(player)) {
             return;
@@ -52,6 +58,12 @@ public class BlockListener implements Listener {
         }
 
         Player player = event.getPlayer();
+
+        // Block spectators from breaking
+        if (eventManager.isSpectator(player)) {
+            event.setCancelled(true);
+            return;
+        }
 
         // Only apply to players in the event
         if (!eventManager.isPlayerInEvent(player)) {

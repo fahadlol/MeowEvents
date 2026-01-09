@@ -16,6 +16,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class KitsGUI implements Listener {
 
@@ -24,20 +25,11 @@ public class KitsGUI implements Listener {
     private final KitManager kitManager;
     private final boolean returnToMainMenu;
     private static final String GUI_TITLE = ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "Kit Selection";
-    private static boolean listenerRegistered = false;
+    private static final AtomicBoolean listenerRegistered = new AtomicBoolean(false);
 
-    // Kit icon materials for variety
-    private static final Material[] KIT_ICONS = {
-            Material.DIAMOND_SWORD,
-            Material.IRON_CHESTPLATE,
-            Material.GOLDEN_APPLE,
-            Material.BOW,
-            Material.SHIELD,
-            Material.CROSSBOW,
-            Material.TRIDENT,
-            Material.NETHERITE_AXE,
-            Material.ENCHANTED_GOLDEN_APPLE
-    };
+    // Kit wool materials: grey for unselected, green for selected
+    private static final Material KIT_UNSELECTED = Material.GRAY_WOOL;
+    private static final Material KIT_SELECTED = Material.LIME_WOOL;
 
     public KitsGUI(MeowMCEvents plugin, EventManager eventManager) {
         this(plugin, eventManager, false);
@@ -48,10 +40,9 @@ public class KitsGUI implements Listener {
         this.eventManager = eventManager;
         this.kitManager = plugin.getKitManager();
         this.returnToMainMenu = returnToMainMenu;
-        // Only register listener once to prevent memory leak
-        if (!listenerRegistered) {
+        // Only register listener once to prevent memory leak (thread-safe)
+        if (listenerRegistered.compareAndSet(false, true)) {
             plugin.getServer().getPluginManager().registerEvents(this, plugin);
-            listenerRegistered = true;
             debug("KitsGUI listener registered");
         }
     }
@@ -91,9 +82,8 @@ public class KitsGUI implements Listener {
 
             String kitName = kits.get(kitIndex);
             boolean isSelected = kitName.equals(currentKit);
-            Material icon = KIT_ICONS[kitIndex % KIT_ICONS.length];
 
-            gui.setItem(slot, createKitItem(kitName, isSelected, icon, kitIndex + 1));
+            gui.setItem(slot, createKitItem(kitName, isSelected, kitIndex + 1));
             kitIndex++;
         }
 
@@ -108,6 +98,7 @@ public class KitsGUI implements Listener {
     private ItemStack createInfoItem(String selectedKit, int totalKits) {
         ItemStack item = new ItemStack(Material.BOOK);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
         meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + "Kit Information");
 
         List<String> lore = new ArrayList<>();
@@ -122,9 +113,11 @@ public class KitsGUI implements Listener {
         return item;
     }
 
-    private ItemStack createKitItem(String kitName, boolean isSelected, Material icon, int kitNumber) {
-        ItemStack item = new ItemStack(isSelected ? Material.LIME_STAINED_GLASS_PANE : icon);
+    private ItemStack createKitItem(String kitName, boolean isSelected, int kitNumber) {
+        // Use green wool for selected, grey wool for unselected
+        ItemStack item = new ItemStack(isSelected ? KIT_SELECTED : KIT_UNSELECTED);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
 
         if (isSelected) {
             meta.setDisplayName(ChatColor.GREEN + "" + ChatColor.BOLD + "✓ " + kitName + " ✓");
@@ -146,7 +139,7 @@ public class KitsGUI implements Listener {
             lore.add("");
             lore.add(ChatColor.GRAY + "Click to select this kit");
             lore.add("");
-            lore.add(ChatColor.YELLOW + "➤ Click to select");
+            lore.add(ChatColor.YELLOW + "Click to select");
             lore.add("");
             lore.add(ChatColor.DARK_GRAY + "Kit #" + kitNumber);
 
@@ -160,6 +153,7 @@ public class KitsGUI implements Listener {
     private ItemStack createBackButton() {
         ItemStack item = new ItemStack(Material.ARROW);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
         meta.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "← Back");
 
         List<String> lore = new ArrayList<>();
@@ -173,13 +167,17 @@ public class KitsGUI implements Listener {
     private void fillBorder(Inventory gui, int size) {
         ItemStack borderPane = new ItemStack(Material.PURPLE_STAINED_GLASS_PANE);
         ItemMeta meta = borderPane.getItemMeta();
-        meta.setDisplayName(" ");
-        borderPane.setItemMeta(meta);
+        if (meta != null) {
+            meta.setDisplayName(" ");
+            borderPane.setItemMeta(meta);
+        }
 
         ItemStack accentPane = new ItemStack(Material.MAGENTA_STAINED_GLASS_PANE);
         ItemMeta accentMeta = accentPane.getItemMeta();
-        accentMeta.setDisplayName(" ");
-        accentPane.setItemMeta(accentMeta);
+        if (accentMeta != null) {
+            accentMeta.setDisplayName(" ");
+            accentPane.setItemMeta(accentMeta);
+        }
 
         int rows = size / 9;
 
@@ -253,28 +251,21 @@ public class KitsGUI implements Listener {
             }
         }
 
-        // Ignore border glass panes, info book, and already selected kit
+        // Ignore border glass panes and info book
         if (type == Material.PURPLE_STAINED_GLASS_PANE ||
             type == Material.MAGENTA_STAINED_GLASS_PANE ||
-            type == Material.BOOK ||
-            type == Material.LIME_STAINED_GLASS_PANE) {
-
-            if (type == Material.LIME_STAINED_GLASS_PANE) {
-                player.sendMessage(ChatColor.YELLOW + "This kit is already selected!");
-            }
+            type == Material.BOOK) {
             return;
         }
 
-        // Check if it's a kit icon
-        boolean isKitIcon = false;
-        for (Material kitIcon : KIT_ICONS) {
-            if (type == kitIcon) {
-                isKitIcon = true;
-                break;
-            }
+        // Check if it's the selected kit (green wool) - already selected
+        if (type == KIT_SELECTED) {
+            player.sendMessage(ChatColor.YELLOW + "This kit is already selected!");
+            return;
         }
 
-        if (!isKitIcon) {
+        // Check if it's an unselected kit (grey wool)
+        if (type != KIT_UNSELECTED) {
             return;
         }
 

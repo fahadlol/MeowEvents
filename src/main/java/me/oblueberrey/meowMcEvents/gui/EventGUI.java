@@ -12,24 +12,24 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class EventGUI implements Listener {
 
     private final MeowMCEvents plugin;
     private final EventManager eventManager;
     private static final String GUI_TITLE = ChatColor.DARK_PURPLE + "MeowMC Event Manager";
-    private static boolean listenerRegistered = false;
+    private static final AtomicBoolean listenerRegistered = new AtomicBoolean(false);
 
     public EventGUI(MeowMCEvents plugin, EventManager eventManager) {
         this.plugin = plugin;
         this.eventManager = eventManager;
-        // Only register listener once to prevent memory leak
-        if (!listenerRegistered) {
+        if (listenerRegistered.compareAndSet(false, true)) {
             plugin.getServer().getPluginManager().registerEvents(this, plugin);
-            listenerRegistered = true;
             debug("EventGUI listener registered");
         }
     }
@@ -77,6 +77,7 @@ public class EventGUI implements Listener {
     private ItemStack createStartButton() {
         ItemStack item = new ItemStack(Material.LIME_WOOL);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
         meta.setDisplayName(ChatColor.GREEN + "" + ChatColor.BOLD + "START EVENT");
 
         List<String> lore = new ArrayList<>();
@@ -101,6 +102,7 @@ public class EventGUI implements Listener {
     private ItemStack createKillButton() {
         ItemStack item = new ItemStack(Material.IRON_SWORD);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
         meta.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "KILL PLAYER");
 
         List<String> lore = new ArrayList<>();
@@ -117,6 +119,7 @@ public class EventGUI implements Listener {
     private ItemStack createStopButton() {
         ItemStack item = new ItemStack(Material.RED_WOOL);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
         meta.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "STOP EVENT");
 
         List<String> lore = new ArrayList<>();
@@ -140,6 +143,7 @@ public class EventGUI implements Listener {
     private ItemStack createKitButton() {
         ItemStack item = new ItemStack(Material.CHEST);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
         meta.setDisplayName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "SELECT KIT");
 
         String selectedKit = plugin.getKitManager().getSelectedKit();
@@ -160,26 +164,27 @@ public class EventGUI implements Listener {
     private ItemStack createTeamSizeButton() {
         ItemStack item = new ItemStack(Material.PLAYER_HEAD);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
+
         meta.setDisplayName(ChatColor.AQUA + "" + ChatColor.BOLD + "GAME MODE");
 
         int teamSize = eventManager.getTeamSize();
         List<String> lore = new ArrayList<>();
 
         if (teamSize == 1) {
-            lore.add(ChatColor.GRAY + "Current: " + ChatColor.YELLOW + "Solo (Free-for-all)");
+            lore.add(ChatColor.GRAY + "Current: " + ChatColor.GREEN + "Solo (FFA)");
         } else {
-            lore.add(ChatColor.GRAY + "Current: " + ChatColor.YELLOW + teamSize + "v" + teamSize);
+            lore.add(ChatColor.GRAY + "Current: " + ChatColor.GREEN + teamSize + "v" + teamSize + " Teams");
         }
 
         lore.add("");
-        lore.add(ChatColor.GRAY + "Available modes:");
-        lore.add(ChatColor.YELLOW + "• Solo (1v1v1...)");
-        lore.add(ChatColor.YELLOW + "• 2v2");
-        lore.add(ChatColor.YELLOW + "• 3v3");
-        lore.add(ChatColor.YELLOW + "• 4v4");
-        lore.add(ChatColor.YELLOW + "• 5v5");
+        lore.add(ChatColor.GRAY + "Choose your battle format:");
+        lore.add(ChatColor.DARK_GRAY + "• " + ChatColor.RED + "Solo " + ChatColor.DARK_GRAY + "- Free-for-all");
+        lore.add(ChatColor.DARK_GRAY + "• " + ChatColor.GOLD + "2v2 " + ChatColor.DARK_GRAY + "- Duo teams");
+        lore.add(ChatColor.DARK_GRAY + "• " + ChatColor.YELLOW + "3v3 " + ChatColor.DARK_GRAY + "- Trio teams");
+        lore.add(ChatColor.DARK_GRAY + "• " + ChatColor.AQUA + "4v4 " + ChatColor.DARK_GRAY + "- Quad teams");
         lore.add("");
-        lore.add(ChatColor.YELLOW + "➤ Click to cycle");
+        lore.add(ChatColor.YELLOW + "➤ Click to open selection menu");
 
         meta.setLore(lore);
         item.setItemMeta(meta);
@@ -190,6 +195,7 @@ public class EventGUI implements Listener {
         boolean buildEnabled = eventManager.isBuildingAllowed();
         ItemStack item = new ItemStack(buildEnabled ? Material.GRASS_BLOCK : Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
         meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + "TOGGLE BUILD");
 
         List<String> lore = new ArrayList<>();
@@ -209,6 +215,7 @@ public class EventGUI implements Listener {
         boolean regenEnabled = eventManager.isNaturalRegenAllowed();
         ItemStack item = new ItemStack(regenEnabled ? Material.GOLDEN_APPLE : Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
         meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + "NATURAL REGEN");
 
         List<String> lore = new ArrayList<>();
@@ -229,6 +236,7 @@ public class EventGUI implements Listener {
         boolean breakEnabled = eventManager.isBreakingAllowed();
         ItemStack item = new ItemStack(breakEnabled ? Material.DIAMOND_PICKAXE : Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
+        if (meta == null) return item;
         meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + "TOGGLE BREAK");
 
         List<String> lore = new ArrayList<>();
@@ -247,8 +255,10 @@ public class EventGUI implements Listener {
     private void fillEmptySlots(Inventory gui) {
         ItemStack filler = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
         ItemMeta meta = filler.getItemMeta();
-        meta.setDisplayName(" ");
-        filler.setItemMeta(meta);
+        if (meta != null) {
+            meta.setDisplayName(" ");
+            filler.setItemMeta(meta);
+        }
 
         for (int i = 0; i < gui.getSize(); i++) {
             if (gui.getItem(i) == null) {
@@ -336,13 +346,17 @@ public class EventGUI implements Listener {
                 eventManager.stopEvent();
                 break;
 
-            case 16: // Team Size
+            case 16: // Team Size - Opens Game Mode Selection GUI
                 if (!player.hasPermission("meowevent.admin")) {
                     player.sendMessage(ChatColor.RED + "You need admin permission!");
                     return;
                 }
-                debug(player.getName() + " clicked GAME MODE");
-                cycleTeamSize(player);
+                debug(player.getName() + " clicked GAME MODE - opening selection menu");
+                player.closeInventory();
+                Bukkit.getScheduler().runTaskLater(plugin, () -> {
+                    GameModeGUI gameModeGUI = new GameModeGUI(plugin, eventManager);
+                    gameModeGUI.openGUI(player);
+                }, 1L);
                 break;
 
             case 19: // Toggle Build
@@ -383,20 +397,6 @@ public class EventGUI implements Listener {
         }
     }
 
-    private void cycleTeamSize(Player player) {
-        int currentSize = eventManager.getTeamSize();
-        int newSize = currentSize >= 5 ? 1 : currentSize + 1;
-        eventManager.setTeamSize(newSize);
-
-        if (newSize == 1) {
-            player.sendMessage(ChatColor.GREEN + "Mode set to Solo (Free-for-all)");
-        } else {
-            player.sendMessage(ChatColor.GREEN + "Team size set to " + newSize + "v" + newSize);
-        }
-
-        updateGUI(player);
-    }
-
     private void updateGUI(Player player) {
         player.closeInventory();
         Bukkit.getScheduler().runTaskLater(plugin, () -> openGUI(player), 1L);
@@ -414,13 +414,19 @@ public class EventGUI implements Listener {
         for (int i = 0; i < onlinePlayers.size() && i < 54; i++) {
             Player target = onlinePlayers.get(i);
             ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
-            ItemMeta meta = skull.getItemMeta();
+            SkullMeta meta = (SkullMeta) skull.getItemMeta();
+            if (meta == null) continue;
+
+            // SECURITY: Use setOwningPlayer to store UUID, not just display name
+            // This prevents name spoofing attacks
+            meta.setOwningPlayer(target);
             meta.setDisplayName(ChatColor.YELLOW + target.getName());
 
             List<String> lore = new ArrayList<>();
             lore.add(ChatColor.GRAY + "Health: " + ChatColor.RED +
                     String.format("%.1f", target.getHealth()) + "/" + target.getMaxHealth());
             lore.add("");
+            lore.add(ChatColor.DARK_GRAY + "UUID: " + target.getUniqueId().toString().substring(0, 8) + "...");
             lore.add(ChatColor.RED + "➤ Click to eliminate");
 
             meta.setLore(lore);
@@ -434,11 +440,18 @@ public class EventGUI implements Listener {
     private void handlePlayerSelectorClick(Player admin, ItemStack clicked) {
         if (clicked.getType() != Material.PLAYER_HEAD) return;
 
-        ItemMeta meta = clicked.getItemMeta();
-        if (meta == null || !meta.hasDisplayName()) return;
+        // SECURITY: Use SkullMeta.getOwningPlayer() to get player by UUID
+        // This is immune to name spoofing attacks
+        if (!(clicked.getItemMeta() instanceof SkullMeta)) return;
+        SkullMeta meta = (SkullMeta) clicked.getItemMeta();
 
-        String targetName = ChatColor.stripColor(meta.getDisplayName());
-        Player target = Bukkit.getPlayer(targetName);
+        if (meta.getOwningPlayer() == null) {
+            admin.sendMessage(ChatColor.RED + "Invalid player head!");
+            admin.closeInventory();
+            return;
+        }
+
+        Player target = meta.getOwningPlayer().getPlayer();
 
         if (target == null || !target.isOnline()) {
             admin.sendMessage(ChatColor.RED + "Player not found or offline!");

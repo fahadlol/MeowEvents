@@ -22,7 +22,8 @@ public class PlayerQuitListener implements Listener {
 
     private void debug(String message) {
         MeowMCEvents plugin = MeowMCEvents.getInstance();
-        if (plugin != null && plugin.getConfigManager().shouldLogPlayers()) {
+        if (plugin == null) return;
+        if (plugin.getConfigManager().shouldLogPlayers()) {
             plugin.getLogger().info("[DEBUG:QUIT] " + message);
         }
     }
@@ -45,6 +46,10 @@ public class PlayerQuitListener implements Listener {
 
         debug(player.getName() + " disconnected while in event");
 
+        // SECURITY: Clear inventory immediately to prevent item duplication exploit
+        // Items could be picked up by others or saved to player data otherwise
+        player.getInventory().clear();
+
         // Broadcast disconnect message
         Bukkit.broadcastMessage(ChatColor.YELLOW + player.getName() +
                 ChatColor.GRAY + " disconnected and has been eliminated from the event!");
@@ -57,6 +62,13 @@ public class PlayerQuitListener implements Listener {
         if (eventManager.isEventRunning()) {
             debug("Checking for winner after " + player.getName() + " disconnect");
             eventManager.checkForWinner();
+
+            // Trigger auto-balance after player leaves (with slight delay)
+            Bukkit.getScheduler().runTaskLater(MeowMCEvents.getInstance(), () -> {
+                if (eventManager.isEventRunning()) {
+                    eventManager.triggerAutoBalance();
+                }
+            }, 20L); // 1 second delay
         }
     }
 }

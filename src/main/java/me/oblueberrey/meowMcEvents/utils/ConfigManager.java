@@ -55,7 +55,12 @@ public class ConfigManager {
         float yaw = (float) config.getDouble("spawn.yaw", 0.0);
         float pitch = (float) config.getDouble("spawn.pitch", 0.0);
 
-        return new Location(plugin.getServer().getWorld(worldName), x, y, z, yaw, pitch);
+        org.bukkit.World world = plugin.getServer().getWorld(worldName);
+        if (world == null) {
+            plugin.getLogger().warning("Spawn world '" + worldName + "' not found! Using default world.");
+            world = plugin.getServer().getWorlds().isEmpty() ? null : plugin.getServer().getWorlds().get(0);
+        }
+        return new Location(world, x, y, z, yaw, pitch);
     }
 
     public Location getPlayerSpawnLocation() {
@@ -66,7 +71,12 @@ public class ConfigManager {
         float yaw = (float) config.getDouble("player-spawn.yaw", 0.0);
         float pitch = (float) config.getDouble("player-spawn.pitch", 0.0);
 
-        return new Location(plugin.getServer().getWorld(worldName), x, y, z, yaw, pitch);
+        org.bukkit.World world = plugin.getServer().getWorld(worldName);
+        if (world == null) {
+            plugin.getLogger().warning("Player spawn world '" + worldName + "' not found! Using default world.");
+            world = plugin.getServer().getWorlds().isEmpty() ? null : plugin.getServer().getWorlds().get(0);
+        }
+        return new Location(world, x, y, z, yaw, pitch);
     }
 
     public Location getEventJoinSpawnLocation() {
@@ -77,10 +87,19 @@ public class ConfigManager {
         float yaw = (float) config.getDouble("event-spawn.yaw", 0.0);
         float pitch = (float) config.getDouble("event-spawn.pitch", 0.0);
 
-        return new Location(plugin.getServer().getWorld(worldName), x, y, z, yaw, pitch);
+        org.bukkit.World world = plugin.getServer().getWorld(worldName);
+        if (world == null) {
+            plugin.getLogger().warning("Event spawn world '" + worldName + "' not found! Using default world.");
+            world = plugin.getServer().getWorlds().isEmpty() ? null : plugin.getServer().getWorlds().get(0);
+        }
+        return new Location(world, x, y, z, yaw, pitch);
     }
 
     public void setEventJoinSpawnLocation(Location location) {
+        if (location == null || location.getWorld() == null) {
+            plugin.getLogger().warning("Cannot set event spawn: location or world is null!");
+            return;
+        }
         config.set("event-spawn.world", location.getWorld().getName());
         config.set("event-spawn.x", location.getX());
         config.set("event-spawn.y", location.getY());
@@ -91,6 +110,10 @@ public class ConfigManager {
     }
 
     public void setSpawnLocation(Location location) {
+        if (location == null || location.getWorld() == null) {
+            plugin.getLogger().warning("Cannot set spawn: location or world is null!");
+            return;
+        }
         config.set("spawn.world", location.getWorld().getName());
         config.set("spawn.x", location.getX());
         config.set("spawn.y", location.getY());
@@ -101,6 +124,10 @@ public class ConfigManager {
     }
 
     public void setPlayerSpawnLocation(Location location) {
+        if (location == null || location.getWorld() == null) {
+            plugin.getLogger().warning("Cannot set player spawn: location or world is null!");
+            return;
+        }
         config.set("player-spawn.world", location.getWorld().getName());
         config.set("player-spawn.x", location.getX());
         config.set("player-spawn.y", location.getY());

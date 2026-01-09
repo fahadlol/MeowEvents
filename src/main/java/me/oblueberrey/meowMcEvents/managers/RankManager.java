@@ -35,11 +35,12 @@ public class RankManager {
     }
 
     /**
-     * Reset a player's rank to 0 (called on death)
+     * Reset a player's rank (called on death)
+     * Removes entry entirely to save memory
      */
     public void resetRank(Player player) {
         if (player == null) return;
-        playerRanks.put(player.getUniqueId(), 0);
+        playerRanks.remove(player.getUniqueId());
     }
 
     /**

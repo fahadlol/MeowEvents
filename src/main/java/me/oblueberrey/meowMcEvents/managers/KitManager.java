@@ -4,6 +4,7 @@ import me.oblueberrey.meowMcEvents.MeowMCEvents;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
+import org.bukkit.plugin.Plugin;
 
 import java.util.List;
 
@@ -11,10 +12,33 @@ public class KitManager {
 
     private final MeowMCEvents plugin;
     private String selectedKit;
+    private boolean xyrisKitsAvailable;
 
     public KitManager(MeowMCEvents plugin) {
         this.plugin = plugin;
         this.selectedKit = plugin.getConfig().getString("selected-kit", "Warrior");
+        this.xyrisKitsAvailable = checkXyrisKitsAvailable();
+
+        if (!xyrisKitsAvailable) {
+            plugin.getLogger().warning("[KitManager] XyrisKits plugin not found! Kit distribution will be disabled.");
+        } else {
+            debug("XyrisKits plugin detected and available");
+        }
+    }
+
+    /**
+     * Check if XyrisKits plugin is available
+     */
+    private boolean checkXyrisKitsAvailable() {
+        Plugin kitsPlugin = Bukkit.getPluginManager().getPlugin("XyrisKits");
+        return kitsPlugin != null && kitsPlugin.isEnabled();
+    }
+
+    /**
+     * Check if kit distribution is available
+     */
+    public boolean isKitSystemAvailable() {
+        return xyrisKitsAvailable;
     }
 
     private void debug(String message) {
@@ -27,11 +51,46 @@ public class KitManager {
      * Give kit to player by running: /kits give {player} {kit}
      */
     public void giveKit(Player player, String kitName) {
+        if (!xyrisKitsAvailable) {
+            debug("Cannot give kit - XyrisKits plugin not available");
+            player.sendMessage(ChatColor.RED + "Kit system unavailable - XyrisKits plugin not found!");
+            return;
+        }
+
+        // SECURITY: Sanitize inputs to prevent command injection
+        String safeName = sanitizeInput(player.getName());
+        String safeKit = sanitizeInput(kitName);
+
+        // Validate inputs aren't empty after sanitization
+        if (safeName.isEmpty() || safeKit.isEmpty()) {
+            plugin.getLogger().warning("[SECURITY] Blocked potentially malicious kit command for: " + player.getName());
+            player.sendMessage(ChatColor.RED + "Invalid kit name!");
+            return;
+        }
+
+        // Validate kit exists in our config
+        if (!kitExists(safeKit)) {
+            debug("Kit '" + safeKit + "' not found in config");
+            player.sendMessage(ChatColor.RED + "Kit '" + safeKit + "' does not exist!");
+            return;
+        }
+
         // Run command: /kits give PlayerName KitName
-        String command = "kits give " + player.getName() + " " + kitName;
+        String command = "kits give " + safeName + " " + safeKit;
         debug("Executing command: /" + command);
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
-        debug("Kit '" + kitName + "' given to " + player.getName());
+        debug("Kit '" + safeKit + "' given to " + player.getName());
+    }
+
+    /**
+     * Sanitize input to prevent command injection
+     * Only allows alphanumeric characters, underscores, and hyphens
+     */
+    private String sanitizeInput(String input) {
+        if (input == null) return "";
+        // Remove any characters that could be used for command injection
+        // Only allow: a-z, A-Z, 0-9, underscore, hyphen
+        return input.replaceAll("[^a-zA-Z0-9_-]", "");
     }
 
     /**

@@ -1,12 +1,15 @@
 package me.oblueberrey.meowMcEvents.managers;
 
 import me.oblueberrey.meowMcEvents.MeowMCEvents;
+import me.oblueberrey.meowMcEvents.listeners.SpectatorCompassListener;
 import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.GameMode;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class EventManager {
 
@@ -15,35 +18,43 @@ public class EventManager {
     private final RankManager rankManager;
     private final BorderManager borderManager;
     private final KitManager kitManager;
+    private final EventStatsManager eventStatsManager;
 
-    private boolean eventRunning;
-    private boolean countdownActive;
-    private boolean buildingAllowed;
-    private boolean breakingAllowed;
-    private boolean naturalRegenAllowed;
-    private int teamSize;
-    private Set<UUID> joinedPlayers; // Players who joined with /event
-    private Set<UUID> alivePlayers; // Players currently alive in event
-    private Set<UUID> spectators; // Players spectating the event
+    private volatile boolean eventRunning;
+    private volatile boolean countdownActive;
+    private volatile boolean buildingAllowed;
+    private volatile boolean breakingAllowed;
+    private volatile boolean naturalRegenAllowed;
+    private volatile int teamSize;
+    private final Set<UUID> joinedPlayers; // Players who joined with /event (thread-safe)
+    private final Set<UUID> alivePlayers; // Players currently alive in event (thread-safe)
+    private final Set<UUID> spectators; // Players spectating the event (thread-safe)
     private BukkitTask winnerCheckTask;
     private BukkitTask countdownTask;
 
+    // Lock to prevent race conditions in winner detection
+    private final Object winnerLock = new Object();
+    private final AtomicBoolean winnerAnnounced = new AtomicBoolean(false);
+
     public EventManager(MeowMCEvents plugin, TeamManager teamManager,
-                        RankManager rankManager, BorderManager borderManager, KitManager kitManager) {
+                        RankManager rankManager, BorderManager borderManager, KitManager kitManager,
+                        EventStatsManager eventStatsManager) {
         this.plugin = plugin;
         this.teamManager = teamManager;
         this.rankManager = rankManager;
         this.borderManager = borderManager;
         this.kitManager = kitManager;
+        this.eventStatsManager = eventStatsManager;
         this.eventRunning = false;
         this.countdownActive = false;
         this.buildingAllowed = plugin.getConfigManager().isDefaultBuildingAllowed();
         this.breakingAllowed = plugin.getConfigManager().isDefaultBreakingAllowed();
         this.naturalRegenAllowed = plugin.getConfigManager().isDefaultNaturalRegenAllowed();
         this.teamSize = plugin.getConfigManager().getDefaultMode(); // Load from config
-        this.joinedPlayers = new HashSet<>();
-        this.alivePlayers = new HashSet<>();
-        this.spectators = new HashSet<>();
+        // Use thread-safe sets to prevent ConcurrentModificationException
+        this.joinedPlayers = ConcurrentHashMap.newKeySet();
+        this.alivePlayers = ConcurrentHashMap.newKeySet();
+        this.spectators = ConcurrentHashMap.newKeySet();
 
         if (plugin.getConfigManager().shouldLogEvents()) {
             plugin.getLogger().info("[DEBUG:EVENT] EventManager initialized. Default mode: " + teamSize + ", Building: " + buildingAllowed + ", Breaking: " + breakingAllowed + ", NaturalRegen: " + naturalRegenAllowed);
@@ -79,6 +90,12 @@ public class EventManager {
 
         if (plugin.getConfigManager().shouldLogEvents()) {
             plugin.getLogger().info("[DEBUG:EVENT] Countdown started: " + countdownSeconds + " seconds");
+        }
+
+        // Cancel any existing countdown task (safety check)
+        if (countdownTask != null) {
+            countdownTask.cancel();
+            countdownTask = null;
         }
 
         // Start countdown task
@@ -181,8 +198,13 @@ public class EventManager {
     public void addSpectator(Player player) {
         spectators.add(player.getUniqueId());
         player.setGameMode(GameMode.SPECTATOR);
+
+        // Give spectator compass
+        player.getInventory().clear();
+        player.getInventory().setItem(0, SpectatorCompassListener.createSpectatorCompass());
+
         if (plugin.getConfigManager().shouldLogPlayers()) {
-            plugin.getLogger().info("[DEBUG:PLAYER] " + player.getName() + " added as spectator. Total spectators: " + spectators.size());
+            plugin.getLogger().info("[DEBUG:PLAYER] " + player.getName() + " added as spectator with compass. Total spectators: " + spectators.size());
         }
     }
 
@@ -192,6 +214,13 @@ public class EventManager {
     public void removeSpectator(Player player) {
         spectators.remove(player.getUniqueId());
         player.setGameMode(GameMode.SURVIVAL);
+        player.getInventory().clear();
+
+        // Clear spectator compass tracking
+        if (plugin.getSpectatorCompassListener() != null) {
+            plugin.getSpectatorCompassListener().clearSpectatorIndex(player);
+        }
+
         if (plugin.getConfigManager().shouldLogPlayers()) {
             plugin.getLogger().info("[DEBUG:PLAYER] " + player.getName() + " removed from spectators. Remaining spectators: " + spectators.size());
         }
@@ -246,8 +275,10 @@ public class EventManager {
 
         // Initialize event state
         eventRunning = true;
+        winnerAnnounced.set(false); // Reset winner flag for new event
         alivePlayers.clear();
         rankManager.clearAllRanks();
+        eventStatsManager.reset();
 
         if (plugin.getConfigManager().shouldLogEvents()) {
             plugin.getLogger().info("[DEBUG:EVENT] Event state initialized. Team size: " + teamSize);
@@ -294,6 +325,9 @@ public class EventManager {
                 player.sendMessage(ChatColor.GOLD + "Solo Mode - Last player standing wins!");
             }
         }
+
+        // Register all participants for stats tracking
+        eventStatsManager.registerParticipants(alivePlayers);
 
         // Start border shrinking
         borderManager.startBorderShrink(spawn.getWorld(), spawn);
@@ -356,8 +390,13 @@ public class EventManager {
 
         // Reset border - use spawn location world instead of first world
         Location spawn = plugin.getConfigManager().getSpawnLocation();
-        World world = spawn != null && spawn.getWorld() != null ? spawn.getWorld() : plugin.getServer().getWorlds().get(0);
-        borderManager.resetBorder(world);
+        World world = spawn != null && spawn.getWorld() != null ? spawn.getWorld() : null;
+        if (world == null && !plugin.getServer().getWorlds().isEmpty()) {
+            world = plugin.getServer().getWorlds().get(0);
+        }
+        if (world != null) {
+            borderManager.resetBorder(world);
+        }
 
         // Teleport all alive players back to player spawn
         Location playerSpawn = plugin.getConfigManager().getPlayerSpawnLocation();
@@ -382,8 +421,13 @@ public class EventManager {
             Player player = Bukkit.getPlayer(uuid);
             if (player != null && player.isOnline()) {
                 player.setGameMode(GameMode.SURVIVAL);
+                player.getInventory().clear();
                 if (playerSpawn != null && playerSpawn.getWorld() != null) {
                     player.teleport(playerSpawn);
+                }
+                // Clear spectator compass tracking
+                if (plugin.getSpectatorCompassListener() != null) {
+                    plugin.getSpectatorCompassListener().clearSpectatorIndex(player);
                 }
             }
         }
@@ -408,6 +452,12 @@ public class EventManager {
      * Start the repeating winner check task
      */
     private void startWinnerCheckTask() {
+        // Cancel any existing winner check task (safety check)
+        if (winnerCheckTask != null) {
+            winnerCheckTask.cancel();
+            winnerCheckTask = null;
+        }
+
         winnerCheckTask = Bukkit.getScheduler().runTaskTimer(plugin,
                 this::checkForWinner, 20L, 20L); // Run every 1 second
     }
@@ -420,57 +470,71 @@ public class EventManager {
             return;
         }
 
-        // Team mode: check if only one team has alive players
-        if (teamManager.isTeamMode()) {
-            int aliveTeams = teamManager.getAliveTeamCount(alivePlayers);
-
-            if (plugin.getConfigManager().shouldLogEvents()) {
-                plugin.getLogger().info("[DEBUG:EVENT] Winner check - Team mode. Alive teams: " + aliveTeams + ", Alive players: " + alivePlayers.size());
+        // Synchronize winner detection to prevent race conditions
+        synchronized (winnerLock) {
+            // Double-check after acquiring lock
+            if (!eventRunning || winnerAnnounced.get()) {
+                return;
             }
 
-            if (aliveTeams <= 1) {
-                int winningTeam = teamManager.getWinningTeam(alivePlayers);
-                if (winningTeam != -1) {
-                    if (plugin.getConfigManager().shouldLogEvents()) {
-                        plugin.getLogger().info("[DEBUG:EVENT] Team winner detected: Team " + winningTeam);
-                    }
-                    announceTeamWinner(winningTeam);
-                } else {
-                    // No teams left, stop event
-                    if (plugin.getConfigManager().shouldLogEvents()) {
-                        plugin.getLogger().info("[DEBUG:EVENT] No teams left, stopping event");
-                    }
-                    stopEvent();
+            // Team mode: check if only one team has alive players
+            if (teamManager.isTeamMode()) {
+                int aliveTeams = teamManager.getAliveTeamCount(alivePlayers);
+
+                if (plugin.getConfigManager().shouldLogEvents()) {
+                    plugin.getLogger().info("[DEBUG:EVENT] Winner check - Team mode. Alive teams: " + aliveTeams + ", Alive players: " + alivePlayers.size());
                 }
-            }
-        }
-        // Solo mode: check if only one player is alive
-        else {
-            if (plugin.getConfigManager().shouldLogEvents()) {
-                plugin.getLogger().info("[DEBUG:EVENT] Winner check - Solo mode. Alive players: " + alivePlayers.size());
-            }
 
-            if (alivePlayers.size() <= 1) {
-                if (alivePlayers.size() == 1) {
-                    UUID winnerUUID = alivePlayers.iterator().next();
-                    Player winner = Bukkit.getPlayer(winnerUUID);
-                    if (winner != null) {
-                        if (plugin.getConfigManager().shouldLogEvents()) {
-                            plugin.getLogger().info("[DEBUG:EVENT] Solo winner detected: " + winner.getName());
+                if (aliveTeams <= 1) {
+                    int winningTeam = teamManager.getWinningTeam(alivePlayers);
+                    if (winningTeam != -1) {
+                        // Prevent double announcement
+                        if (winnerAnnounced.compareAndSet(false, true)) {
+                            if (plugin.getConfigManager().shouldLogEvents()) {
+                                plugin.getLogger().info("[DEBUG:EVENT] Team winner detected: Team " + winningTeam);
+                            }
+                            announceTeamWinner(winningTeam);
                         }
-                        announceSoloWinner(winner);
                     } else {
+                        // No teams left, stop event
                         if (plugin.getConfigManager().shouldLogEvents()) {
-                            plugin.getLogger().info("[DEBUG:EVENT] Winner player is offline, stopping event");
+                            plugin.getLogger().info("[DEBUG:EVENT] No teams left, stopping event");
                         }
                         stopEvent();
                     }
-                } else {
-                    // No winner (everyone died somehow)
-                    if (plugin.getConfigManager().shouldLogEvents()) {
-                        plugin.getLogger().info("[DEBUG:EVENT] No players left, stopping event");
+                }
+            }
+            // Solo mode: check if only one player is alive
+            else {
+                if (plugin.getConfigManager().shouldLogEvents()) {
+                    plugin.getLogger().info("[DEBUG:EVENT] Winner check - Solo mode. Alive players: " + alivePlayers.size());
+                }
+
+                if (alivePlayers.size() <= 1) {
+                    if (alivePlayers.size() == 1) {
+                        UUID winnerUUID = alivePlayers.iterator().next();
+                        Player winner = Bukkit.getPlayer(winnerUUID);
+                        if (winner != null) {
+                            // Prevent double announcement
+                            if (winnerAnnounced.compareAndSet(false, true)) {
+                                if (plugin.getConfigManager().shouldLogEvents()) {
+                                    plugin.getLogger().info("[DEBUG:EVENT] Solo winner detected: " + winner.getName());
+                                }
+                                announceSoloWinner(winner);
+                            }
+                        } else {
+                            if (plugin.getConfigManager().shouldLogEvents()) {
+                                plugin.getLogger().info("[DEBUG:EVENT] Winner player is offline, stopping event");
+                            }
+                            stopEvent();
+                        }
+                    } else {
+                        // No winner (everyone died somehow)
+                        if (plugin.getConfigManager().shouldLogEvents()) {
+                            plugin.getLogger().info("[DEBUG:EVENT] No players left, stopping event");
+                        }
+                        stopEvent();
                     }
-                    stopEvent();
                 }
             }
         }
@@ -504,41 +568,13 @@ public class EventManager {
             player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
         }
 
-        // Cleanup after 5 seconds
+        // Announce rankings after 3 seconds
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            World world = plugin.getServer().getWorlds().get(0);
-            borderManager.resetBorder(world);
+            eventStatsManager.announceRankings(winner.getUniqueId(), false, -1, teamManager);
+        }, 60L);
 
-            // Teleport all players back
-            Location playerSpawn = plugin.getConfigManager().getPlayerSpawnLocation();
-            for (UUID uuid : alivePlayers) {
-                Player player = Bukkit.getPlayer(uuid);
-                if (player != null && player.isOnline()) {
-                    player.teleport(playerSpawn);
-                    player.getInventory().clear();
-                    player.setHealth(20.0);
-                    player.setFoodLevel(20);
-                }
-            }
-
-            // Teleport all spectators back and set to survival
-            for (UUID uuid : spectators) {
-                Player player = Bukkit.getPlayer(uuid);
-                if (player != null && player.isOnline()) {
-                    player.setGameMode(GameMode.SURVIVAL);
-                    player.teleport(playerSpawn);
-                }
-            }
-
-            teamManager.clearTeams();
-            rankManager.clearAllRanks();
-            joinedPlayers.clear();
-            alivePlayers.clear();
-            spectators.clear();
-
-            Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
-                    plugin.getConfigManager().getMessage("event-stop")));
-        }, 100L);
+        // Cleanup after 8 seconds (give time for rankings to show)
+        Bukkit.getScheduler().runTaskLater(plugin, this::cleanupAfterWinner, 160L);
     }
 
     /**
@@ -570,41 +606,67 @@ public class EventManager {
             player.playSound(player.getLocation(), Sound.UI_TOAST_CHALLENGE_COMPLETE, 1.0f, 1.0f);
         }
 
-        // Cleanup after 5 seconds
+        // Announce rankings after 3 seconds
         Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            World world = plugin.getServer().getWorlds().get(0);
+            eventStatsManager.announceRankings(null, true, teamNumber, teamManager);
+        }, 60L);
+
+        // Cleanup after 8 seconds (give time for rankings to show)
+        Bukkit.getScheduler().runTaskLater(plugin, this::cleanupAfterWinner, 160L);
+    }
+
+    /**
+     * Common cleanup logic after a winner is announced
+     */
+    private void cleanupAfterWinner() {
+        // SECURITY: Use spawn location world instead of blindly getting first world
+        Location spawn = plugin.getConfigManager().getSpawnLocation();
+        World world = spawn != null && spawn.getWorld() != null ? spawn.getWorld() : null;
+        if (world == null && !plugin.getServer().getWorlds().isEmpty()) {
+            world = plugin.getServer().getWorlds().get(0);
+        }
+        if (world != null) {
             borderManager.resetBorder(world);
+        }
 
-            // Teleport all players back
-            Location playerSpawn = plugin.getConfigManager().getPlayerSpawnLocation();
-            for (UUID uuid : alivePlayers) {
-                Player player = Bukkit.getPlayer(uuid);
-                if (player != null && player.isOnline()) {
-                    player.teleport(playerSpawn);
-                    player.getInventory().clear();
-                    player.setHealth(20.0);
-                    player.setFoodLevel(20);
-                }
-            }
-
-            // Teleport all spectators back and set to survival
-            for (UUID uuid : spectators) {
-                Player player = Bukkit.getPlayer(uuid);
-                if (player != null && player.isOnline()) {
-                    player.setGameMode(GameMode.SURVIVAL);
+        // Teleport all players back
+        Location playerSpawn = plugin.getConfigManager().getPlayerSpawnLocation();
+        for (UUID uuid : alivePlayers) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null && player.isOnline()) {
+                if (playerSpawn != null && playerSpawn.getWorld() != null) {
                     player.teleport(playerSpawn);
                 }
+                player.getInventory().clear();
+                player.setHealth(20.0);
+                player.setFoodLevel(20);
             }
+        }
 
-            teamManager.clearTeams();
-            rankManager.clearAllRanks();
-            joinedPlayers.clear();
-            alivePlayers.clear();
-            spectators.clear();
+        // Teleport all spectators back and set to survival
+        for (UUID uuid : spectators) {
+            Player player = Bukkit.getPlayer(uuid);
+            if (player != null && player.isOnline()) {
+                player.setGameMode(GameMode.SURVIVAL);
+                player.getInventory().clear();
+                if (playerSpawn != null && playerSpawn.getWorld() != null) {
+                    player.teleport(playerSpawn);
+                }
+                // Clear spectator compass tracking
+                if (plugin.getSpectatorCompassListener() != null) {
+                    plugin.getSpectatorCompassListener().clearSpectatorIndex(player);
+                }
+            }
+        }
 
-            Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
-                    plugin.getConfigManager().getMessage("event-stop")));
-        }, 100L);
+        teamManager.clearTeams();
+        rankManager.clearAllRanks();
+        joinedPlayers.clear();
+        alivePlayers.clear();
+        spectators.clear();
+
+        Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
+                plugin.getConfigManager().getMessage("event-stop")));
     }
 
     /**
@@ -627,8 +689,13 @@ public class EventManager {
      */
     public void markPlayerDead(Player player) {
         alivePlayers.remove(player.getUniqueId());
+
+        // Record death for placement tracking
+        eventStatsManager.recordDeath(player.getUniqueId());
+
         if (plugin.getConfigManager().shouldLogPlayers()) {
-            plugin.getLogger().info("[DEBUG:PLAYER] " + player.getName() + " marked as dead. Remaining alive: " + alivePlayers.size());
+            plugin.getLogger().info("[DEBUG:PLAYER] " + player.getName() + " marked as dead. Remaining alive: " + alivePlayers.size() +
+                    " | Placement: #" + eventStatsManager.getPlacement(player.getUniqueId()));
         }
     }
 
@@ -684,5 +751,33 @@ public class EventManager {
 
     public int getJoinedPlayerCount() {
         return joinedPlayers.size();
+    }
+
+    /**
+     * Get a copy of the alive players set (for auto-balancing)
+     */
+    public Set<UUID> getAlivePlayers() {
+        return new HashSet<>(alivePlayers);
+    }
+
+    /**
+     * Trigger auto-balance check for teams
+     * Called after a player dies or disconnects
+     */
+    public void triggerAutoBalance() {
+        if (!eventRunning || teamSize <= 1) {
+            return; // Only balance in team mode
+        }
+
+        if (plugin.getConfigManager().shouldLogTeams()) {
+            plugin.getLogger().info("[DEBUG:TEAM] Checking if auto-balance is needed...");
+        }
+
+        if (teamManager.needsBalancing(alivePlayers)) {
+            if (plugin.getConfigManager().shouldLogTeams()) {
+                plugin.getLogger().info("[DEBUG:TEAM] Teams unbalanced, triggering auto-balance");
+            }
+            teamManager.autoBalanceTeams(alivePlayers);
+        }
     }
 }

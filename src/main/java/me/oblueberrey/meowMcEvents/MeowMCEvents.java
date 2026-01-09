@@ -15,6 +15,8 @@ public class MeowMCEvents extends JavaPlugin {
     private BorderManager borderManager;
     private ConfigManager configManager;
     private KitManager kitManager;
+    private SpectatorCompassListener spectatorCompassListener;
+    private EventStatsManager eventStatsManager;
 
     @Override
     public void onEnable() {
@@ -29,7 +31,8 @@ public class MeowMCEvents extends JavaPlugin {
         rankManager = new RankManager();
         borderManager = new BorderManager(this);
         kitManager = new KitManager(this);
-        eventManager = new EventManager(this, teamManager, rankManager, borderManager, kitManager);
+        eventStatsManager = new EventStatsManager(this);
+        eventManager = new EventManager(this, teamManager, rankManager, borderManager, kitManager, eventStatsManager);
 
         // Register commands
         getCommand("meowevent").setExecutor(new MeowEventCommand(this, eventManager));
@@ -43,6 +46,10 @@ public class MeowMCEvents extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockListener(eventManager), this);
         getServer().getPluginManager().registerEvents(new CommandBlockListener(this, eventManager), this);
         getServer().getPluginManager().registerEvents(new RegenListener(eventManager), this);
+
+        // Spectator compass listener
+        spectatorCompassListener = new SpectatorCompassListener(this, eventManager, teamManager);
+        getServer().getPluginManager().registerEvents(spectatorCompassListener, this);
 
         getLogger().info("MeowMCEvents v1.0 has been enabled!");
         getLogger().info("Loaded " + kitManager.getKitNames().size() + " kits from config");
@@ -88,5 +95,13 @@ public class MeowMCEvents extends JavaPlugin {
 
     public KitManager getKitManager() {
         return kitManager;
+    }
+
+    public SpectatorCompassListener getSpectatorCompassListener() {
+        return spectatorCompassListener;
+    }
+
+    public EventStatsManager getEventStatsManager() {
+        return eventStatsManager;
     }
 }

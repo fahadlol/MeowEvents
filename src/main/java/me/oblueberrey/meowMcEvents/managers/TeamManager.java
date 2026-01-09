@@ -5,6 +5,7 @@ import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 public class TeamManager {
 
@@ -256,5 +257,154 @@ public class TeamManager {
      */
     public int getTotalPlayers() {
         return playerTeams.size();
+    }
+
+    /**
+     * Auto-balance teams by moving players from larger teams to smaller teams
+     * Called when a player leaves to keep teams balanced
+     * @param alivePlayers Set of alive player UUIDs to consider for balancing
+     * @return true if any rebalancing occurred
+     */
+    public boolean autoBalanceTeams(Set<UUID> alivePlayers) {
+        if (!isTeamMode() || teams.size() < 2) {
+            debug("Auto-balance skipped: not in team mode or less than 2 teams");
+            return false;
+        }
+
+        // Calculate alive players per team
+        Map<Integer, List<UUID>> alivePerTeam = new HashMap<>();
+        for (int teamNum : teams.keySet()) {
+            alivePerTeam.put(teamNum, new ArrayList<>());
+            for (UUID member : teams.get(teamNum)) {
+                if (alivePlayers.contains(member)) {
+                    alivePerTeam.get(teamNum).add(member);
+                }
+            }
+        }
+
+        // Remove empty teams from consideration
+        alivePerTeam.entrySet().removeIf(entry -> entry.getValue().isEmpty());
+
+        if (alivePerTeam.size() < 2) {
+            debug("Auto-balance skipped: less than 2 teams with alive players");
+            return false;
+        }
+
+        boolean balanced = false;
+        int iterations = 0;
+        int maxIterations = 10; // Prevent infinite loops
+
+        while (iterations < maxIterations) {
+            iterations++;
+
+            // Find team with most and least alive players
+            int maxTeam = -1, minTeam = -1;
+            int maxSize = Integer.MIN_VALUE, minSize = Integer.MAX_VALUE;
+
+            for (Map.Entry<Integer, List<UUID>> entry : alivePerTeam.entrySet()) {
+                int size = entry.getValue().size();
+                if (size > maxSize) {
+                    maxSize = size;
+                    maxTeam = entry.getKey();
+                }
+                if (size < minSize) {
+                    minSize = size;
+                    minTeam = entry.getKey();
+                }
+            }
+
+            // Only balance if difference is 2 or more
+            if (maxSize - minSize < 2) {
+                break;
+            }
+
+            // Move one player from largest team to smallest team
+            List<UUID> largeTeamPlayers = alivePerTeam.get(maxTeam);
+            if (largeTeamPlayers.isEmpty()) break;
+
+            UUID playerToMove = largeTeamPlayers.get(largeTeamPlayers.size() - 1); // Move last player
+            movePlayerToTeam(playerToMove, minTeam);
+
+            // Update local tracking
+            largeTeamPlayers.remove(playerToMove);
+            alivePerTeam.get(minTeam).add(playerToMove);
+
+            // Notify the moved player
+            Player player = org.bukkit.Bukkit.getPlayer(playerToMove);
+            if (player != null && player.isOnline()) {
+                ChatColor newColor = getTeamColor(minTeam);
+                player.sendMessage(ChatColor.YELLOW + "[Auto-Balance] " + ChatColor.WHITE +
+                        "You have been moved to " + newColor + "Team " + minTeam);
+                player.sendTitle(
+                        ChatColor.YELLOW + "Team Changed!",
+                        newColor + "You are now on Team " + minTeam,
+                        10, 40, 10
+                );
+            }
+
+            debug("Auto-balanced: moved player to Team " + minTeam + " (was " + maxSize + " vs " + minSize + ")");
+            balanced = true;
+        }
+
+        if (balanced) {
+            org.bukkit.Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&',
+                    "&6&l[MeowEvent] &eTeams have been auto-balanced!"));
+        }
+
+        return balanced;
+    }
+
+    /**
+     * Move a player to a different team
+     * @param uuid Player UUID
+     * @param newTeam New team number
+     */
+    public void movePlayerToTeam(UUID uuid, int newTeam) {
+        if (uuid == null) return;
+
+        // Remove from old team
+        Integer oldTeam = playerTeams.get(uuid);
+        if (oldTeam != null) {
+            Set<UUID> oldTeamSet = teams.get(oldTeam);
+            if (oldTeamSet != null) {
+                oldTeamSet.remove(uuid);
+                if (oldTeamSet.isEmpty()) {
+                    teams.remove(oldTeam);
+                }
+            }
+        }
+
+        // Add to new team
+        Set<UUID> newTeamSet = teams.computeIfAbsent(newTeam, k -> new HashSet<>());
+        newTeamSet.add(uuid);
+        playerTeams.put(uuid, newTeam);
+
+        debug("Moved player from Team " + oldTeam + " to Team " + newTeam);
+    }
+
+    /**
+     * Check if teams need balancing
+     * @param alivePlayers Set of alive player UUIDs
+     * @return true if teams are unbalanced (difference of 2+ players)
+     */
+    public boolean needsBalancing(Set<UUID> alivePlayers) {
+        if (!isTeamMode() || teams.size() < 2) return false;
+
+        int maxSize = 0, minSize = Integer.MAX_VALUE;
+
+        for (int teamNum : teams.keySet()) {
+            int aliveCount = 0;
+            for (UUID member : teams.get(teamNum)) {
+                if (alivePlayers.contains(member)) {
+                    aliveCount++;
+                }
+            }
+            if (aliveCount > 0) { // Only count teams with alive players
+                maxSize = Math.max(maxSize, aliveCount);
+                minSize = Math.min(minSize, aliveCount);
+            }
+        }
+
+        return (maxSize - minSize) >= 2;
     }
 }

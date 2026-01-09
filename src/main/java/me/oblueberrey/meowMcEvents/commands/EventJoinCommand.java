@@ -35,6 +35,12 @@ public class EventJoinCommand implements CommandExecutor {
 
         Player player = (Player) sender;
 
+        // Check permission
+        if (!player.hasPermission("meowevent.join")) {
+            player.sendMessage(ChatColor.RED + "You do not have permission to join events!");
+            return true;
+        }
+
         // Check if event is running - allow joining as spectator
         if (eventManager.isEventRunning()) {
             // Check if already a spectator
