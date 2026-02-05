@@ -2,8 +2,7 @@ package me.oblueberrey.meowMcEvents.commands;
 
 import me.oblueberrey.meowMcEvents.MeowMCEvents;
 import me.oblueberrey.meowMcEvents.managers.EventManager;
-import org.bukkit.ChatColor;
-import org.bukkit.Location;
+import me.oblueberrey.meowMcEvents.utils.ConfigManager;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -14,9 +13,19 @@ public class LeaveCommand implements CommandExecutor {
     private final MeowMCEvents plugin;
     private final EventManager eventManager;
 
+    // Improved RGB Colors
+    private static final String GREY = "&#AAAAAA";
+    private static final String RED = "&#FF5555";
+    private static final String YELLOW = "&#FFE566";
+    private static final String ORANGE = "&#FF9944";
+
     public LeaveCommand(MeowMCEvents plugin, EventManager eventManager) {
         this.plugin = plugin;
         this.eventManager = eventManager;
+    }
+
+    private String msg(String text) {
+        return ConfigManager.colorize(text);
     }
 
     private void debug(String message) {
@@ -28,11 +37,17 @@ public class LeaveCommand implements CommandExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player)) {
-            sender.sendMessage(ChatColor.RED + "This command can only be used by players!");
+            sender.sendMessage(msg(GREY + "" + RED + "players only"));
             return true;
         }
 
         Player player = (Player) sender;
+        
+        // Check permission
+        if (!player.hasPermission("meowevent.leave")) {
+            player.sendMessage(msg("&7&cno permission"));
+            return true;
+        }
 
         // Check if player is in event (active), in queue (waiting), or spectating
         boolean inActiveEvent = eventManager.isPlayerInEvent(player);
@@ -40,8 +55,7 @@ public class LeaveCommand implements CommandExecutor {
         boolean isSpectator = eventManager.isSpectator(player);
 
         if (!inActiveEvent && !inQueue && !isSpectator) {
-            player.sendMessage(ChatColor.translateAlternateColorCodes('&',
-                    plugin.getConfigManager().getMessage("not-in-event")));
+            player.sendMessage(plugin.getConfigManager().getMessage("not-in-event"));
             return true;
         }
 
@@ -56,13 +70,6 @@ public class LeaveCommand implements CommandExecutor {
             eventManager.removePlayer(player);
         }
 
-        // Always teleport to player spawn when leaving
-        Location playerSpawn = plugin.getConfigManager().getPlayerSpawnLocation();
-        if (playerSpawn != null && playerSpawn.getWorld() != null) {
-            player.teleport(playerSpawn);
-            debug(player.getName() + " teleported to player spawn");
-        }
-
         // Clear inventory and reset health if player was in active event or spectating
         if (inActiveEvent || isSpectator) {
             player.getInventory().clear();
@@ -70,8 +77,14 @@ public class LeaveCommand implements CommandExecutor {
             player.setFoodLevel(20);
         }
 
-        player.sendMessage(ChatColor.translateAlternateColorCodes('&',
-                plugin.getConfigManager().getMessage("left-event")));
+        player.sendMessage(plugin.getConfigManager().getMessage("left-event"));
+
+        // Execute end command from config to teleport player
+        String endCommand = plugin.getConfigManager().getEndCommand();
+        if (endCommand != null && !endCommand.isEmpty()) {
+            player.performCommand(endCommand);
+            debug(player.getName() + " executed /" + endCommand);
+        }
 
         // Check for winner after player leaves (only if event is running)
         if (eventManager.isEventRunning()) {

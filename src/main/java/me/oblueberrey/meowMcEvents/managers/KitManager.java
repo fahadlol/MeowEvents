@@ -75,8 +75,11 @@ public class KitManager {
             return;
         }
 
-        // Run command: /kits give PlayerName KitName
-        String command = "kits give " + safeName + " " + safeKit;
+        // Run command using kit-command format from config
+        String commandFormat = plugin.getConfig().getString("kit-command", "kits give %player% %kit%");
+        String command = commandFormat
+                .replace("%player%", safeName)
+                .replace("%kit%", safeKit);
         debug("Executing command: /" + command);
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
         debug("Kit '" + safeKit + "' given to " + player.getName());

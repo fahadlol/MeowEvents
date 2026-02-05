@@ -32,6 +32,20 @@ public class PlayerQuitListener implements Listener {
     public void onPlayerQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
 
+        // Clear pending respawn flag if player disconnects after death
+        eventManager.clearPendingRespawn(player);
+
+        // Clear spectator compass index to prevent memory leak
+        MeowMCEvents plugin = MeowMCEvents.getInstance();
+        if (plugin != null && plugin.getSpectatorCompassListener() != null) {
+            plugin.getSpectatorCompassListener().clearSpectatorIndex(player);
+        }
+
+        // Clear damage tracker data for this player
+        if (plugin != null && plugin.getDamageTracker() != null) {
+            plugin.getDamageTracker().clearPlayer(player.getUniqueId());
+        }
+
         // Check if player is a spectator - just remove them silently
         if (eventManager.isSpectator(player)) {
             eventManager.removeSpectator(player);

@@ -14,18 +14,36 @@ commands:
     aliases: [me, mevent]
     permission: meowevent.use
     permission-message: You do not have permission to use this command
+  meowevents:
+    description: Player help and info for MeowEvents
+    usage: /meowevents [help|info|admin]
+    aliases: [mevents, mehelp]
+    permission: meowevent.help
   event:
     description: Join the event
     usage: /event
     permission: meowevent.join
     permission-message: You do not have permission to use this command
-  leave:
+  eventleave:
     description: Leave the current event
-    usage: /leave
+    usage: /eventleave
+    aliases: [eleave, eleave]
+    permission: meowevent.leave
   kits:
     description: Open kit selection GUI (admin only)
     usage: /kits
     permission: meowevent.admin
+    permission-message: You do not have permission to use this command
+  arena:
+    description: Manage event arenas
+    usage: /arena <create|pos1|pos2|delete|list|set|info> [name]
+    permission: meowevent.admin
+    permission-message: You do not have permission to use this command
+  eventspectate:
+    description: Spectate the current event
+    usage: /eventspectate
+    aliases: [es, eventspec, espec]
+    permission: meowevent.spectate
     permission-message: You do not have permission to use this command
 
 permissions:
@@ -38,3 +56,12 @@ permissions:
   meowevent.admin:
     description: Full access to event management
     default: op
+  meowevent.help:
+    description: Allows use of help command
+    default: true
+  meowevent.leave:
+    description: Allows use of leave command
+    default: true
+  meowevent.spectate:
+    description: Allows spectating events
+    default: true

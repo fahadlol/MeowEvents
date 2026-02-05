@@ -2,8 +2,10 @@ package me.oblueberrey.meowMcEvents.gui;
 
 import me.oblueberrey.meowMcEvents.MeowMCEvents;
 import me.oblueberrey.meowMcEvents.managers.EventManager;
+import me.oblueberrey.meowMcEvents.utils.ButtonBuilder;
+import me.oblueberrey.meowMcEvents.utils.ConfigManager;
+import me.oblueberrey.meowMcEvents.utils.MessageUtils;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -11,7 +13,6 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 
 import java.util.ArrayList;
@@ -22,7 +23,27 @@ public class EventGUI implements Listener {
 
     private final MeowMCEvents plugin;
     private final EventManager eventManager;
-    private static final String GUI_TITLE = ChatColor.DARK_PURPLE + "MeowMC Event Manager";
+
+    // Improved RGB Colors
+    private static final String GREY = "&#AAAAAA";
+    private static final String YELLOW = "&#FFE566";
+    private static final String ORANGE = "&#FF9944";
+    private static final String RED = "&#FF5555";
+    private static final String GREEN = "&#55FF55";
+    private static final String GOLD = "&#FFE566";
+    private static final String AQUA = "&#55FFFF";
+    private static final String PINK = "&#FF7EB3";
+
+    // Unicode Emojis (Dark grey)
+    private static final String E_START = "&#666666▶";
+    private static final String E_STOP = "&#666666⏹";
+    private static final String E_KIT = "&#666666⚔";
+    private static final String E_KILL = "&#666666☠";
+    private static final String E_MODE = "&#666666👥";
+    private static final String E_GEAR = "&#666666⚙";
+    private static final String E_INFO = "&#666666ℹ";
+
+    private static final String GUI_TITLE = MessageUtils.colorize("&#666666⚙ " + MessageUtils.gradient("Event Administration", "#FF7EB3", "#FF9944", "#FFE566"));
     private static final AtomicBoolean listenerRegistered = new AtomicBoolean(false);
 
     public EventGUI(MeowMCEvents plugin, EventManager eventManager) {
@@ -41,238 +62,184 @@ public class EventGUI implements Listener {
     }
 
     public void openGUI(Player player) {
-        debug(player.getName() + " opened Event Manager GUI");
-        Inventory gui = Bukkit.createInventory(null, 27, GUI_TITLE);
+        debug(player.getName() + " Opened Event Manager GUI");
+        Inventory gui = Bukkit.createInventory(null, 45, GUI_TITLE);
 
-        // Start Event Button (Slot 10)
-        gui.setItem(10, createStartButton());
+        // Decorative Border
+        fillBorder(gui);
 
-        // Kill Player Button (Slot 12)
-        gui.setItem(12, createKillButton());
+        // Group 1: Core Controls (Row 2, centered)
+        gui.setItem(11, createStartButton());
+        gui.setItem(12, createKitButton());
+        gui.setItem(13, createTeamSizeButton());
+        gui.setItem(14, createKillButton());
+        gui.setItem(15, createStopButton());
 
-        // Stop Event Button (Slot 14)
-        gui.setItem(14, createStopButton());
+        // Group 2: Game Rules (Row 4, centered)
+        gui.setItem(29, createBuildToggle());
+        gui.setItem(31, createNaturalRegenToggle());
+        gui.setItem(33, createBreakToggle());
 
-        // Kit Selection Button (Slot 11) - NEW!
-        gui.setItem(11, createKitButton());
-
-        // Team Size Selector (Slot 16)
-        gui.setItem(16, createTeamSizeButton());
-
-        // Toggle Build (Slot 19)
-        gui.setItem(19, createBuildToggle());
-
-        // Toggle Natural Regen (Slot 20)
-        gui.setItem(20, createNaturalRegenToggle());
-
-        // Toggle Break (Slot 21)
-        gui.setItem(21, createBreakToggle());
-
-        // Fill empty slots with glass panes
-        fillEmptySlots(gui);
+        // Info Item (Center)
+        gui.setItem(4, createInfoItem());
 
         player.openInventory(gui);
     }
 
-    private ItemStack createStartButton() {
-        ItemStack item = new ItemStack(Material.LIME_WOOL);
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
-        meta.setDisplayName(ChatColor.GREEN + "" + ChatColor.BOLD + "START EVENT");
-
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Click to start countdown");
-        lore.add(ChatColor.GRAY + "Players can join during countdown");
-        lore.add(ChatColor.GRAY + "Countdown: " + ChatColor.AQUA + plugin.getConfigManager().getCountdownSeconds() + "s");
-        lore.add("");
-
-        if (eventManager.isEventRunning()) {
-            lore.add(ChatColor.RED + "⚠ Event already running!");
-        } else if (eventManager.isCountdownActive()) {
-            lore.add(ChatColor.YELLOW + "⚠ Countdown in progress!");
-        } else {
-            lore.add(ChatColor.YELLOW + "➤ Click to start");
-        }
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack createKillButton() {
-        ItemStack item = new ItemStack(Material.IRON_SWORD);
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
-        meta.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "KILL PLAYER");
-
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Instantly eliminate a player");
-        lore.add(ChatColor.GRAY + "Opens player selector");
-        lore.add("");
-        lore.add(ChatColor.YELLOW + "➤ Click to select player");
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack createStopButton() {
-        ItemStack item = new ItemStack(Material.RED_WOOL);
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
-        meta.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "STOP EVENT");
-
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Stop the current event/countdown");
-        lore.add(ChatColor.GRAY + "Resets border and teams");
-        lore.add("");
-
-        if (eventManager.isEventRunning()) {
-            lore.add(ChatColor.YELLOW + "➤ Click to stop event");
-        } else if (eventManager.isCountdownActive()) {
-            lore.add(ChatColor.YELLOW + "➤ Click to cancel countdown");
-        } else {
-            lore.add(ChatColor.RED + "⚠ No event running");
-        }
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack createKitButton() {
-        ItemStack item = new ItemStack(Material.CHEST);
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
-        meta.setDisplayName(ChatColor.LIGHT_PURPLE + "" + ChatColor.BOLD + "SELECT KIT");
-
-        String selectedKit = plugin.getKitManager().getSelectedKit();
-
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Choose which kit players receive");
-        lore.add(ChatColor.GRAY + "when the event starts");
-        lore.add("");
-        lore.add(ChatColor.GRAY + "Current kit: " + ChatColor.GOLD + selectedKit);
-        lore.add("");
-        lore.add(ChatColor.YELLOW + "➤ Click to select kit");
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack createTeamSizeButton() {
-        ItemStack item = new ItemStack(Material.PLAYER_HEAD);
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
-
-        meta.setDisplayName(ChatColor.AQUA + "" + ChatColor.BOLD + "GAME MODE");
-
-        int teamSize = eventManager.getTeamSize();
-        List<String> lore = new ArrayList<>();
-
-        if (teamSize == 1) {
-            lore.add(ChatColor.GRAY + "Current: " + ChatColor.GREEN + "Solo (FFA)");
-        } else {
-            lore.add(ChatColor.GRAY + "Current: " + ChatColor.GREEN + teamSize + "v" + teamSize + " Teams");
-        }
-
-        lore.add("");
-        lore.add(ChatColor.GRAY + "Choose your battle format:");
-        lore.add(ChatColor.DARK_GRAY + "• " + ChatColor.RED + "Solo " + ChatColor.DARK_GRAY + "- Free-for-all");
-        lore.add(ChatColor.DARK_GRAY + "• " + ChatColor.GOLD + "2v2 " + ChatColor.DARK_GRAY + "- Duo teams");
-        lore.add(ChatColor.DARK_GRAY + "• " + ChatColor.YELLOW + "3v3 " + ChatColor.DARK_GRAY + "- Trio teams");
-        lore.add(ChatColor.DARK_GRAY + "• " + ChatColor.AQUA + "4v4 " + ChatColor.DARK_GRAY + "- Quad teams");
-        lore.add("");
-        lore.add(ChatColor.YELLOW + "➤ Click to open selection menu");
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack createBuildToggle() {
-        boolean buildEnabled = eventManager.isBuildingAllowed();
-        ItemStack item = new ItemStack(buildEnabled ? Material.GRASS_BLOCK : Material.BARRIER);
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
-        meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + "TOGGLE BUILD");
-
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Allow players to place blocks");
-        lore.add("");
-        lore.add(ChatColor.GRAY + "Status: " + (buildEnabled ?
-                ChatColor.GREEN + "ENABLED" : ChatColor.RED + "DISABLED"));
-        lore.add("");
-        lore.add(ChatColor.YELLOW + "➤ Click to toggle");
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack createNaturalRegenToggle() {
-        boolean regenEnabled = eventManager.isNaturalRegenAllowed();
-        ItemStack item = new ItemStack(regenEnabled ? Material.GOLDEN_APPLE : Material.BARRIER);
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
-        meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + "NATURAL REGEN");
-
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Allow players to regenerate");
-        lore.add(ChatColor.GRAY + "health naturally");
-        lore.add("");
-        lore.add(ChatColor.GRAY + "Status: " + (regenEnabled ?
-                ChatColor.GREEN + "ENABLED" : ChatColor.RED + "DISABLED"));
-        lore.add("");
-        lore.add(ChatColor.YELLOW + "➤ Click to toggle");
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private ItemStack createBreakToggle() {
-        boolean breakEnabled = eventManager.isBreakingAllowed();
-        ItemStack item = new ItemStack(breakEnabled ? Material.DIAMOND_PICKAXE : Material.BARRIER);
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
-        meta.setDisplayName(ChatColor.GOLD + "" + ChatColor.BOLD + "TOGGLE BREAK");
-
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Allow players to break blocks");
-        lore.add("");
-        lore.add(ChatColor.GRAY + "Status: " + (breakEnabled ?
-                ChatColor.GREEN + "ENABLED" : ChatColor.RED + "DISABLED"));
-        lore.add("");
-        lore.add(ChatColor.YELLOW + "➤ Click to toggle");
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private void fillEmptySlots(Inventory gui) {
-        ItemStack filler = new ItemStack(Material.GRAY_STAINED_GLASS_PANE);
-        ItemMeta meta = filler.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(" ");
-            filler.setItemMeta(meta);
-        }
+    private void fillBorder(Inventory gui) {
+        ItemStack border = new ButtonBuilder(Material.GRAY_STAINED_GLASS_PANE)
+                .name(" ")
+                .build();
+        ItemStack corner = new ButtonBuilder(Material.ORANGE_STAINED_GLASS_PANE)
+                .name(" ")
+                .build();
 
         for (int i = 0; i < gui.getSize(); i++) {
-            if (gui.getItem(i) == null) {
-                gui.setItem(i, filler);
+            if (i < 9 || i >= 36 || i % 9 == 0 || (i + 1) % 9 == 0) {
+                if (i == 0 || i == 8 || i == 36 || i == 44) {
+                    gui.setItem(i, corner);
+                } else {
+                    gui.setItem(i, border);
+                }
             }
         }
     }
+
+    private ItemStack createInfoItem() {
+        return new ButtonBuilder(Material.BOOK)
+                .name(GOLD + "Event status")
+                .lore(GREY + "Current state: " + (eventManager.isEventRunning() ? GREEN + "Running" : (eventManager.isCountdownActive() ? ORANGE + "Countdown" : RED + "Idle")),
+                      GREY + "Players: " + YELLOW + eventManager.getJoinedPlayerCount(),
+                      GREY + "Mode: " + YELLOW + (eventManager.getTeamSize() == 1 ? "Solo" : eventManager.getTeamSize() + "v" + eventManager.getTeamSize()),
+                      "",
+                      GREY + "Configure your event settings below.")
+                .build();
+    }
+
+    private ItemStack createStartButton() {
+        ButtonBuilder builder = new ButtonBuilder(Material.LIME_WOOL)
+                .name(E_START + " " + GREEN + "Start event")
+                .lore(GREY + "Begin the event countdown.",
+                      GREY + "Players can join during this time.",
+                      "",
+                      GREY + "Duration: " + YELLOW + plugin.getConfigManager().getCountdownSeconds() + "s",
+                      "");
+
+        if (eventManager.isEventRunning()) {
+            builder.addLore(RED + "Status: Event is currently running.");
+            builder.glow(true);
+        } else if (eventManager.isCountdownActive()) {
+            builder.addLore(ORANGE + "Status: Countdown is already active.");
+            builder.glow(true);
+        } else {
+            builder.addLore(YELLOW + "Click to initiate countdown.");
+        }
+
+        return builder.build();
+    }
+
+    private ItemStack createKillButton() {
+        return new ButtonBuilder(Material.IRON_SWORD)
+                .name(E_KILL + " " + RED + "Eliminate player")
+                .lore(GREY + "Instantly remove a player from the event.",
+                      GREY + "Opens a selection menu of online players.",
+                      "",
+                      YELLOW + "Click to browse players.")
+                .build();
+    }
+
+    private ItemStack createStopButton() {
+        ButtonBuilder builder = new ButtonBuilder(Material.RED_WOOL)
+                .name(E_STOP + " " + RED + "End event")
+                .lore(GREY + "Stop the current event or countdown.",
+                      GREY + "Resets all event-related data.",
+                      "");
+
+        if (eventManager.isEventRunning() || eventManager.isCountdownActive()) {
+            builder.addLore(YELLOW + "Click to stop immediately.");
+        } else {
+            builder.addLore(RED + "Status: No active event.");
+        }
+
+        return builder.build();
+    }
+
+    private ItemStack createKitButton() {
+        String selectedKit = plugin.getKitManager().getSelectedKit();
+        return new ButtonBuilder(Material.CHEST)
+                .name(E_KIT + " " + ORANGE + "Kit selection")
+                .lore(GREY + "Select the kit given to all participants.",
+                      "",
+                      GREY + "Current: " + YELLOW + selectedKit,
+                      "",
+                      YELLOW + "Click to change kit.")
+                .build();
+    }
+
+    private ItemStack createTeamSizeButton() {
+        int teamSize = eventManager.getTeamSize();
+        ButtonBuilder builder = new ButtonBuilder(Material.PLAYER_HEAD)
+                .name(E_MODE + " " + YELLOW + "Game format");
+
+        if (teamSize == 1) {
+            builder.addLore(GREY + "Format: " + GREEN + "Solo (FFA)");
+        } else {
+            builder.addLore(GREY + "Format: " + GREEN + teamSize + "v" + teamSize + " Teams");
+        }
+
+        builder.addLore("")
+                .addLore(GREY + "Select a battle format:")
+                .addLore(GREY + "- Solo, 2v2, 3v3, or 4v4")
+                .addLore("")
+                .addLore(YELLOW + "Click to switch format.");
+
+        return builder.build();
+    }
+
+    private ItemStack createBuildToggle() {
+        boolean enabled = eventManager.isBuildingAllowed();
+        return new ButtonBuilder(enabled ? Material.GRASS_BLOCK : Material.BARRIER)
+                .name(E_GEAR + " " + ORANGE + "Building")
+                .lore(GREY + "Toggle block placement permissions.",
+                      "",
+                      GREY + "Status: " + (enabled ? GREEN + "Enabled" : RED + "Disabled"),
+                      "",
+                      YELLOW + "Click to toggle.")
+                .build();
+    }
+
+    private ItemStack createNaturalRegenToggle() {
+        boolean enabled = eventManager.isNaturalRegenAllowed();
+        return new ButtonBuilder(enabled ? Material.GOLDEN_APPLE : Material.BARRIER)
+                .name(E_GEAR + " " + ORANGE + "Natural regen")
+                .lore(GREY + "Toggle automatic health regeneration.",
+                      "",
+                      GREY + "Status: " + (enabled ? GREEN + "Enabled" : RED + "Disabled"),
+                      "",
+                      YELLOW + "Click to toggle.")
+                .build();
+    }
+
+    private ItemStack createBreakToggle() {
+        boolean enabled = eventManager.isBreakingAllowed();
+        return new ButtonBuilder(enabled ? Material.DIAMOND_PICKAXE : Material.BARRIER)
+                .name(E_GEAR + " " + ORANGE + "Block breaking")
+                .lore(GREY + "Toggle block destruction permissions.",
+                      "",
+                      GREY + "Status: " + (enabled ? GREEN + "Enabled" : RED + "Disabled"),
+                      "",
+                      YELLOW + "Click to toggle.")
+                .build();
+    }
+
+
 
     @EventHandler
     public void onInventoryClick(InventoryClickEvent event) {
         if (!(event.getWhoClicked() instanceof Player)) return;
 
         String title = event.getView().getTitle();
-        if (!title.equals(GUI_TITLE) && !title.contains("Select Player")) {
+        if (!title.equals(GUI_TITLE) && !title.contains("Browse players")) {
             return;
         }
 
@@ -288,67 +255,43 @@ public class EventGUI implements Listener {
             handleMainGUIClick(player, event.getSlot(), clicked);
         }
         // Handle player selector clicks
-        else if (title.contains("Select Player")) {
+        else if (title.contains("Browse players")) {
             handlePlayerSelectorClick(player, clicked);
         }
     }
 
     private void handleMainGUIClick(Player player, int slot, ItemStack clicked) {
         switch (slot) {
-            case 10: // Start Event
+            case 11: // Start Event
                 if (!player.hasPermission("meowevent.admin")) {
-                    player.sendMessage(ChatColor.RED + "You need admin permission!");
+                    player.sendMessage(MessageUtils.format(RED + "No permission"));
                     return;
                 }
                 if (eventManager.isEventRunning() || eventManager.isCountdownActive()) {
-                    player.sendMessage(ChatColor.RED + "An event or countdown is already in progress!");
+                    player.sendMessage(MessageUtils.format(RED + "Event already in progress"));
                     return;
                 }
-                debug(player.getName() + " clicked START EVENT - starting countdown");
+                debug(player.getName() + " Clicked START EVENT - starting countdown");
                 player.closeInventory();
                 eventManager.startCountdown();
                 break;
 
-            case 11: // Kit Selection - NEW!
+            case 12: // Kit Selection
                 if (!player.hasPermission("meowevent.admin")) {
-                    player.sendMessage(ChatColor.RED + "You need admin permission!");
+                    player.sendMessage(MessageUtils.format(RED + "No permission"));
                     return;
                 }
-                debug(player.getName() + " clicked SELECT KIT");
+                debug(player.getName() + " Clicked SELECT KIT");
                 player.closeInventory();
-                // Open kits GUI
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    KitsGUI kitsGUI = new KitsGUI(plugin, eventManager, true); // true = return to main menu
+                    KitsGUI kitsGUI = new KitsGUI(plugin, eventManager, true);
                     kitsGUI.openGUI(player);
                 }, 1L);
                 break;
 
-            case 12: // Kill Player
+            case 13: // Game Mode
                 if (!player.hasPermission("meowevent.admin")) {
-                    player.sendMessage(ChatColor.RED + "You need admin permission!");
-                    return;
-                }
-                debug(player.getName() + " clicked KILL PLAYER");
-                openPlayerSelector(player);
-                break;
-
-            case 14: // Stop Event
-                if (!player.hasPermission("meowevent.admin")) {
-                    player.sendMessage(ChatColor.RED + "You need admin permission!");
-                    return;
-                }
-                if (!eventManager.isEventRunning() && !eventManager.isCountdownActive()) {
-                    player.sendMessage(ChatColor.RED + "No event or countdown is running!");
-                    return;
-                }
-                debug(player.getName() + " clicked STOP EVENT");
-                player.closeInventory();
-                eventManager.stopEvent();
-                break;
-
-            case 16: // Team Size - Opens Game Mode Selection GUI
-                if (!player.hasPermission("meowevent.admin")) {
-                    player.sendMessage(ChatColor.RED + "You need admin permission!");
+                    player.sendMessage(MessageUtils.format(RED + "No permission"));
                     return;
                 }
                 debug(player.getName() + " clicked GAME MODE - opening selection menu");
@@ -359,39 +302,59 @@ public class EventGUI implements Listener {
                 }, 1L);
                 break;
 
-            case 19: // Toggle Build
+            case 14: // Kill Player
                 if (!player.hasPermission("meowevent.admin")) {
-                    player.sendMessage(ChatColor.RED + "You need admin permission!");
+                    player.sendMessage(MessageUtils.format(RED + "No permission"));
+                    return;
+                }
+                debug(player.getName() + " clicked KILL PLAYER");
+                openPlayerSelector(player);
+                break;
+
+            case 15: // Stop Event
+                if (!player.hasPermission("meowevent.admin")) {
+                    player.sendMessage(MessageUtils.format(RED + "No permission"));
+                    return;
+                }
+                if (!eventManager.isEventRunning() && !eventManager.isCountdownActive()) {
+                    player.sendMessage(MessageUtils.format(RED + "No event running"));
+                    return;
+                }
+                debug(player.getName() + " Clicked STOP EVENT");
+                player.closeInventory();
+                eventManager.stopEvent();
+                break;
+
+            case 29: // Toggle Build
+                if (!player.hasPermission("meowevent.admin")) {
+                    player.sendMessage(MessageUtils.format(RED + "No permission"));
                     return;
                 }
                 eventManager.toggleBuilding();
                 debug(player.getName() + " toggled building to " + eventManager.isBuildingAllowed());
-                player.sendMessage(ChatColor.YELLOW + "Building is now " +
-                        (eventManager.isBuildingAllowed() ? ChatColor.GREEN + "ENABLED" : ChatColor.RED + "DISABLED"));
+                player.sendMessage(MessageUtils.format(ORANGE + "Building " + (eventManager.isBuildingAllowed() ? GREEN + "Enabled" : RED + "Disabled")));
                 updateGUI(player);
                 break;
 
-            case 20: // Toggle Natural Regen
+            case 31: // Toggle Natural Regen
                 if (!player.hasPermission("meowevent.admin")) {
-                    player.sendMessage(ChatColor.RED + "You need admin permission!");
+                    player.sendMessage(MessageUtils.format(RED + "No permission"));
                     return;
                 }
                 eventManager.toggleNaturalRegen();
                 debug(player.getName() + " toggled natural regen to " + eventManager.isNaturalRegenAllowed());
-                player.sendMessage(ChatColor.YELLOW + "Natural Regen is now " +
-                        (eventManager.isNaturalRegenAllowed() ? ChatColor.GREEN + "ENABLED" : ChatColor.RED + "DISABLED"));
+                player.sendMessage(MessageUtils.format(ORANGE + "Natural Regen " + (eventManager.isNaturalRegenAllowed() ? GREEN + "Enabled" : RED + "Disabled")));
                 updateGUI(player);
                 break;
 
-            case 21: // Toggle Break
+            case 33: // Toggle Break
                 if (!player.hasPermission("meowevent.admin")) {
-                    player.sendMessage(ChatColor.RED + "You need admin permission!");
+                    player.sendMessage(MessageUtils.format(RED + "No permission"));
                     return;
                 }
                 eventManager.toggleBreaking();
                 debug(player.getName() + " toggled breaking to " + eventManager.isBreakingAllowed());
-                player.sendMessage(ChatColor.YELLOW + "Breaking is now " +
-                        (eventManager.isBreakingAllowed() ? ChatColor.GREEN + "ENABLED" : ChatColor.RED + "DISABLED"));
+                player.sendMessage(MessageUtils.format(ORANGE + "Breaking " + (eventManager.isBreakingAllowed() ? GREEN + "Enabled" : RED + "Disabled")));
                 updateGUI(player);
                 break;
         }
@@ -409,28 +372,25 @@ public class EventGUI implements Listener {
         if (size < 9) size = 9;
 
         Inventory selector = Bukkit.createInventory(null, size,
-                ChatColor.RED + "Select Player to Kill");
+                MessageUtils.colorize(GREY + "" + RED + "Browse players"));
 
         for (int i = 0; i < onlinePlayers.size() && i < 54; i++) {
             Player target = onlinePlayers.get(i);
-            ItemStack skull = new ItemStack(Material.PLAYER_HEAD);
-            SkullMeta meta = (SkullMeta) skull.getItemMeta();
-            if (meta == null) continue;
-
-            // SECURITY: Use setOwningPlayer to store UUID, not just display name
-            // This prevents name spoofing attacks
-            meta.setOwningPlayer(target);
-            meta.setDisplayName(ChatColor.YELLOW + target.getName());
-
-            List<String> lore = new ArrayList<>();
-            lore.add(ChatColor.GRAY + "Health: " + ChatColor.RED +
-                    String.format("%.1f", target.getHealth()) + "/" + target.getMaxHealth());
-            lore.add("");
-            lore.add(ChatColor.DARK_GRAY + "UUID: " + target.getUniqueId().toString().substring(0, 8) + "...");
-            lore.add(ChatColor.RED + "➤ Click to eliminate");
-
-            meta.setLore(lore);
-            skull.setItemMeta(meta);
+            
+            ItemStack skull = new ButtonBuilder(Material.PLAYER_HEAD)
+                    .name(YELLOW + target.getName())
+                    .lore(GREY + "Health: " + RED + String.format("%.1f", target.getHealth()) + "/" + (int)target.getMaxHealth(),
+                          "",
+                          GREY + "UUID: " + GREY + target.getUniqueId().toString().substring(0, 8) + "...",
+                          RED + "Click to eliminate player.")
+                    .build();
+            
+            // Safely cast to SkullMeta after null check
+            if (skull.getItemMeta() instanceof SkullMeta) {
+                SkullMeta meta = (SkullMeta) skull.getItemMeta();
+                meta.setOwningPlayer(target);
+                skull.setItemMeta(meta);
+            }
             selector.setItem(i, skull);
         }
 
@@ -440,13 +400,11 @@ public class EventGUI implements Listener {
     private void handlePlayerSelectorClick(Player admin, ItemStack clicked) {
         if (clicked.getType() != Material.PLAYER_HEAD) return;
 
-        // SECURITY: Use SkullMeta.getOwningPlayer() to get player by UUID
-        // This is immune to name spoofing attacks
         if (!(clicked.getItemMeta() instanceof SkullMeta)) return;
         SkullMeta meta = (SkullMeta) clicked.getItemMeta();
 
         if (meta.getOwningPlayer() == null) {
-            admin.sendMessage(ChatColor.RED + "Invalid player head!");
+            admin.sendMessage(MessageUtils.colorize(GREY + "" + RED + "Invalid player"));
             admin.closeInventory();
             return;
         }
@@ -454,7 +412,7 @@ public class EventGUI implements Listener {
         Player target = meta.getOwningPlayer().getPlayer();
 
         if (target == null || !target.isOnline()) {
-            admin.sendMessage(ChatColor.RED + "Player not found or offline!");
+            admin.sendMessage(MessageUtils.colorize(GREY + "" + RED + "Player offline"));
             admin.closeInventory();
             return;
         }

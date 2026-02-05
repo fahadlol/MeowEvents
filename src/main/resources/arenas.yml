@@ -1,0 +1,4 @@
+# MeowMCEvents Arena Configuration
+# Arenas are managed with /arena commands
+arenas: {}
+active-arena: ""

@@ -2,6 +2,7 @@ package me.oblueberrey.meowMcEvents.listeners;
 
 import me.oblueberrey.meowMcEvents.MeowMCEvents;
 import me.oblueberrey.meowMcEvents.managers.EventManager;
+import me.oblueberrey.meowMcEvents.utils.EventState;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -25,25 +26,57 @@ public class CommandBlockListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+    // LOWEST priority to run BEFORE other plugins (like spawn plugins that give items)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onPlayerCommand(PlayerCommandPreprocessEvent event) {
         Player player = event.getPlayer();
 
-        // Block commands if player is in active event OR in waiting area (joined during countdown)
+        // Allow all commands during event cleanup/ending phase
+        EventState currentState = eventManager.getState();
+        if (currentState == EventState.ENDING || currentState == EventState.IDLE) {
+            return;
+        }
+
+        // Block commands if player is in active event, spectating, or in waiting area
         boolean inActiveEvent = eventManager.isPlayerInEvent(player);
+        boolean isSpectator = eventManager.isSpectator(player);
         boolean inWaitingArea = eventManager.isCountdownActive() && eventManager.hasPlayerJoined(player);
 
-        if (!inActiveEvent && !inWaitingArea) {
+        if (!inActiveEvent && !isSpectator && !inWaitingArea) {
             return;
         }
 
         String command = event.getMessage().toLowerCase();
 
-        // Allow /leave command for everyone - highest priority, explicitly un-cancel
-        if (command.startsWith("/leave")) {
-            event.setCancelled(false); // Force allow /leave even if other plugins cancelled it
-            debug(player.getName() + " used /leave command - allowed (forced priority)");
+        // Block /spawn for ALL event participants (players, spectators, waiting) - no exceptions
+        if (command.startsWith("/spawn")) {
+            event.setCancelled(true);
+            debug(player.getName() + " tried to use /spawn during event - blocked");
+            player.sendMessage(ChatColor.translateAlternateColorCodes('&',
+                    plugin.getConfigManager().getMessage("command-blocked")));
             return;
+        }
+
+        // Check against blacklisted commands - ALWAYS blocked, even for admins/OPs
+        java.util.List<String> blacklisted = plugin.getConfigManager().getBlacklistedCommands();
+        for (String blocked : blacklisted) {
+            if (command.startsWith("/" + blocked.toLowerCase())) {
+                event.setCancelled(true);
+                debug(player.getName() + " tried blacklisted command: " + command + " - blocked");
+                player.sendMessage(ChatColor.translateAlternateColorCodes('&',
+                        plugin.getConfigManager().getMessage("command-blocked")));
+                return;
+            }
+        }
+
+        // Check against whitelisted commands from config
+        java.util.List<String> whitelisted = plugin.getConfigManager().getWhitelistedCommands();
+        for (String allowed : whitelisted) {
+            if (command.startsWith("/" + allowed.toLowerCase())) {
+                event.setCancelled(false);
+                debug(player.getName() + " used whitelisted command: " + command);
+                return;
+            }
         }
 
         // Allow commands for OPs
@@ -60,7 +93,7 @@ public class CommandBlockListener implements Listener {
 
         // Block all other commands for regular players
         event.setCancelled(true);
-        String state = inActiveEvent ? "event" : "waiting area";
+        String state = inActiveEvent ? "event" : (isSpectator ? "spectating" : "waiting area");
         debug(player.getName() + " tried to use command: " + command + " in " + state + " - blocked");
         player.sendMessage(ChatColor.translateAlternateColorCodes('&',
                 plugin.getConfigManager().getMessage("command-blocked")));

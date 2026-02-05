@@ -1,19 +1,15 @@
-# MeowMCEvents Configuration v1.0
-# Compatible with Paper, Spigot, Purpur 1.21.4
+# ============================================================
+#                    MeowMCEvents Configuration
+#                         Version 1.0
+#              Compatible with Paper, Spigot, Purpur 1.21.4
+# ============================================================
 
-border:
-  # Starting size of the border when event begins
-  start-size: 50
-  # Minimum size the border will shrink to
-  shrink-to: 10
-  # How often the border shrinks (in seconds)
-  interval-seconds: 30
+# ==================== LICENSE & SERVER ====================
+license-key: "PU6T-9P3V-HPET-61OO"
+server-ip: "&6meowmc.fun"
 
-game:
-  allow-building: false
-  allow-breaking: false
-  allow-natural-regen: true
-
+# ==================== SPAWN LOCATIONS ====================
+# Arena spawn (where event takes place)
 spawn:
   world: world
   x: 0.0
@@ -22,7 +18,7 @@ spawn:
   yaw: 0.0
   pitch: 0.0
 
-# Event join spawn (where players go when they do /event to join)
+# Event join spawn (where players teleport when using /event to join queue)
 event-spawn:
   world: world
   x: 0.0
@@ -31,7 +27,7 @@ event-spawn:
   yaw: 0.0
   pitch: 0.0
 
-# Player spawn point (where players go when they leave or die)
+# Player spawn (where players go when they leave event or event ends)
 player-spawn:
   world: world
   x: 0.0
@@ -40,55 +36,341 @@ player-spawn:
   yaw: 0.0
   pitch: 0.0
 
-# Kit system - List all your kit names here
-# placeholders - xryis  handles the actual items
+# ==================== EVENT SETTINGS ====================
+event:
+  # Minimum players required to start an event
+  min-players: 2
+
+  # Maximum players allowed in an event (0 = unlimited)
+  max-players: 0
+
+  # Countdown time in seconds before event starts
+  countdown-seconds: 60
+
+  # Default team size (1 = solo/FFA, 2 = 2v2, 3 = 3v3, etc.)
+  default-mode: 1
+
+  # Delay in ticks before executing /spawn when event ends (10 ticks = 0.5 seconds)
+  # This ensures spectators are fully unfrozen before teleporting
+  end-spawn-delay-ticks: 10
+
+  # Command to execute when event ends (executed by CONSOLE for each player)
+  # Use %player% placeholder for player name, or it will be auto-appended
+  # Examples: "spawn %player%", "warp lobby %player%", "tp %player% 0 100 0"
+  # Set to empty "" to disable
+  end-command: "spawn %player%"
+
+  # Broadcast event start/end to all players on server
+  broadcast-to-server: true
+
+  # Allow players to join mid-event as spectators
+  allow-mid-join-spectate: true
+
+# ==================== COUNTDOWN SETTINGS ====================
+countdown:
+  # Times (in seconds) to announce countdown
+  announce-times:
+    - 30
+    - 15
+    - 10
+    - 5
+    - 4
+    - 3
+    - 2
+    - 1
+
+  # Play sound during countdown
+  sound-enabled: true
+
+  # Show title during countdown
+  title-enabled: true
+
+# ==================== BORDER SETTINGS ====================
+border:
+  # Enable border shrinking
+  enabled: true
+
+  # Starting size of the border when event begins
+  start-size: 50
+
+  # Minimum size the border will shrink to
+  shrink-to: 10
+
+  # How often the border shrinks (in seconds)
+  interval-seconds: 30
+
+  # How much to shrink each interval
+  shrink-amount: 5
+
+  # Damage per second when outside border
+  damage-per-second: 1.0
+
+  # Warning time before shrink (seconds)
+  warning-time: 5
+
+# ==================== PVP SETTINGS ====================
+pvp:
+  # Grace period in seconds after event starts where PvP is disabled (0 = no grace)
+  grace-period-seconds: 0
+
+  # Allow friendly fire in team mode
+  friendly-fire: false
+
+  # Allow self-damage (ender pearls, own explosions)
+  self-damage: true
+
+  # Combat tag duration in seconds (0 = disabled)
+  combat-tag-seconds: 0
+
+# ==================== GAME RULES ====================
+game:
+  # Allow block placing
+  allow-building: false
+
+  # Allow block breaking
+  allow-breaking: false
+
+  # Allow natural health regeneration
+  allow-natural-regen: true
+
+  # Disable fall damage during event
+  disable-fall-damage: false
+
+  # Keep inventory on death (items still cleared, just prevents drops)
+  keep-inventory: true
+
+  # Clear drops on death (prevents item pickup exploits)
+  clear-drops-on-death: true
+
+  # Clear experience on death
+  clear-exp-on-death: true
+
+  # Disable hunger during event
+  disable-hunger: false
+
+  # Disable fire damage
+  disable-fire-damage: false
+
+  # Disable drowning damage
+  disable-drowning: false
+
+  # Disable explosion damage (but keep knockback)
+  disable-explosion-damage: false
+
+# ==================== TEAM SETTINGS ====================
+teams:
+  # Enable auto-balance for teams when players die/leave
+  auto-balance: true
+
+  # Minimum difference in team size before auto-balance triggers
+  balance-threshold: 2
+
+  # Show team names above players
+  show-team-nametags: true
+
+  # Team colors (in order)
+  colors:
+    - RED
+    - BLUE
+    - GREEN
+    - YELLOW
+    - AQUA
+
+# ==================== SPECTATOR SETTINGS ====================
+spectator:
+  # Delay in ticks before player becomes spectator after death (0 = instant)
+  death-delay-ticks: 0
+
+  # Whether spectators can see other spectators
+  see-other-spectators: true
+
+  # Compass slot position (0-8, default 4 = middle)
+  compass-slot: 4
+
+  # Leave dye slot position (0-8, default 8 = far right)
+  leave-slot: 8
+
+  # Spectator flight speed (0.1 - 1.0)
+  flight-speed: 0.2
+
+  # Allow spectators to teleport to players using compass
+  compass-teleport: true
+
+  # Spectator gamemode (ADVENTURE or SPECTATOR)
+  # ADVENTURE = visible, can fly, locked hotbar
+  # SPECTATOR = invisible, noclip, full spectator mode
+  gamemode: ADVENTURE
+
+  # Grace period in ticks after becoming spectator (invulnerability)
+  # Protects against other plugins trying to damage new spectators
+  # 60 ticks = 3 seconds
+  grace-period-ticks: 60
+
+# ==================== KIT SYSTEM ====================
+# Kit names - the actual items are handled by external kit plugin
 kits:
-  - Warrior
-  - Archer
-  - Tank
-  - Mage
-  - Assassin
+  - Axe
+  - Sword
+  - UHC
+  - NetheritePot
+  - cpvp
+  - Manhunt
+  - Elytra
+  - DiaSMP
+  - Mace
+  - DiamondPot
+  - Trident
+  - Vanilla
+  - Creeper
+  - DiamondOP
+  - Pufferfish
+  - ShieldlessSMP
 
 # Selected kit (set by admin before starting event)
 selected-kit: Warrior
 
+# Kit command format (use %player% for player name, %kit% for kit name)
+kit-command: "ekits give %player% %kit%"
+
+# ==================== SOUNDS ====================
+sounds:
+  # Master toggle for all sounds
+  enabled: true
+
+  # Volume multiplier (0.0 - 1.0)
+  volume: 1.0
+
+  # Individual sound toggles
+  countdown-tick: true
+  event-start: true
+  event-end: true
+  player-death: true
+  player-kill: true
+  winner-announcement: true
+
+# ==================== VISUAL FEEDBACK ====================
+feedback:
+  # Enable boss bar during events
+  boss-bar-enabled: true
+
+  # Boss bar color (PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE)
+  boss-bar-color: GREEN
+
+  # Enable action bar messages
+  action-bar-enabled: true
+
+  # Enable particles on kill/death
+  particles-enabled: true
+
+  # Enable winner celebration effects
+  celebration-enabled: true
+
+  # Enable titles (countdown, death, winner)
+  titles-enabled: true
+
+  # Enable scoreboard sidebar during event
+  scoreboard-enabled: true
+
+# ==================== RESULTS & RANKINGS ====================
+results:
+  # Max placements to show in final rankings
+  max-placements: 5
+
+  # Show player with most kills
+  show-most-kills: true
+
+  # Show total participants count
+  show-total-participants: true
+
+  # Delay before showing rankings after winner (in ticks)
+  ranking-delay-ticks: 60
+
+  # Delay before cleanup after winner (in ticks)
+  cleanup-delay-ticks: 160
+
+# ==================== ARENA BOUNDARY ====================
+arena:
+  # How often to check boundaries (in ticks, 10 = 0.5s)
+  boundary-check-interval: 10
+
+  # Damage zone: blocks inward from edge where players take damage (0 = disabled)
+  damage-zone-size: 5
+
+  # Max damage per tick at the very edge
+  damage-zone-max-damage: 4.0
+
+  # Push players back into arena instead of damage
+  push-back-enabled: false
+
+  # Push back strength
+  push-back-strength: 1.5
+
+# ==================== COMMAND WHITELIST ====================
+# Commands players can use while in an event (without the /)
+whitelisted-commands:
+  - eventleave
+  - eleave
+  - leave
+  - msg
+  - r
+  - reply
+  - message
+  - tell
+  - whisper
+  - pm
+
+# Commands that are ALWAYS blocked during events (even if whitelisted elsewhere)
+blacklisted-commands:
+  - home
+  - sethome
+  - tpa
+  - tpaccept
+  - back
+  - warp
+  - tp
+  - teleport
+  - fly
+  - god
+  - gamemode
+  - gm
+
+# ==================== MESSAGES ====================
 messages:
-  event-start: "&a&l[MeowEvent] &eEvent has started! Last player/team standing wins!"
-  event-stop: "&c&l[MeowEvent] &eEvent has been stopped."
-  winner-solo: "&6&l[MeowEvent] &e%player% &ahas won the event!"
-  winner-team: "&6&l[MeowEvent] &aTeam %team% &ehas won the event!"
-  kill-broadcast: "&c%killer% &7[Rank: %rank%] &eeliminated &c%victim%"
-  border-shrink: "&e&l[Border] &7World border shrinking to &e%size%x%size%"
-  not-enough-players: "&c&l[MeowEvent] &eNeed at least 2 players to start!"
-  already-running: "&c&l[MeowEvent] &eAn event is already running!"
-  joined-event: "&a&l[MeowEvent] &eYou joined the event! Wait for it to start."
-  already-joined: "&c&l[MeowEvent] &eYou already joined this event!"
-  left-event: "&c&l[MeowEvent] &eYou have left the event."
-  not-in-event: "&c&l[MeowEvent] &eYou are not in the event!"
-  kit-given: "&a&l[MeowEvent] &eYou received the &a%kit% &ekit!"
-  kit-selected: "&a&l[MeowEvent] &eEvent kit set to &a%kit%&e!"
-  command-blocked: "&c&l[MeowEvent] &eYou cannot use commands during the event!"
-  command-allowed: "&a&l[MeowEvent] &eAllowed commands: /leave"
+  # Use &#RRGGBB for hex colors, & for legacy colors
+  event-start: "&#FFD700&l⚔ EVENT STARTED &#FFD700&l⚔\n          &7Last one standing wins!"
+  event-stop: "&#FF4444&l☠ EVENT TERMINATED &#FF4444&l☠\n          &7Returning to spawn..."
+  winner-solo: "&#FFD700&l★ %player% &#FFD700&l★\n     &eWon the event! Congratulations!"
+  winner-team: "&#FFD700&l★ Team %team% &#FFD700&l★\n     &eWon the event! Congratulations!"
+  kill-broadcast: "&8[&f☠&8] &#FF4444%killer% &7killed &#FF4444%victim%"
+  border-shrink: "&8[&f⚠&8] &#FFA500Border shrinking to &f%size%x%size%"
+  not-enough-players: "&8[&c✘&8] &#FF4444Not enough players to start."
+  already-running: "&8[&c✘&8] &#FF4444An event is already in progress."
+  joined-event: "&8[&a✔&8] &#44FF44You joined the event! &7Good luck!"
+  already-joined: "&8[&c✘&8] &#FF4444You are already in the event."
+  left-event: "&8[&a✔&8] &#FFA500You left the event."
+  not-in-event: "&8[&c✘&8] &#FF4444You are not in an event."
+  kit-given: "&8[&e⚔&8] &#FFFF00%kit% &7kit equipped."
+  kit-selected: "&8[&e⚔&8] &#FFFF00%kit% &7selected for the next event."
+  command-blocked: "&8[&c✘&8] &#FF4444Commands are disabled during event."
+  command-allowed: "&8[&a✔&8] &#FFA500Allowed: &f/eventleave&8, &f/spawn"
+  grace-period-start: "&8[&e⚠&8] &#FFE566Grace period active for &f%seconds%s"
+  grace-period-end: "&8[&c⚔&8] &#FF4444PvP is now enabled!"
+  spectator-mode: "&8[&b👁&8] &#55FFFFYou are now spectating. Use &f/leave &7to exit."
+  forcestart-success: "&8[&a✔&8] &#44FF44Force starting event with &f%count% &7players"
+  forcestart-fail-players: "&8[&c✘&8] &#FF4444Need at least 2 players to forcestart"
+  forcestart-fail-countdown: "&8[&c✘&8] &#FF4444No countdown active - use /meowevent start first"
 
-advanced:
-  default-mode: 1
-  min-players: 2
-  # Countdown time in seconds before event starts (players can join during this time)
-  countdown-seconds: 60
-
-# Debug Settings
-# Enable this to see detailed debug messages in console
+# ==================== DEBUG SETTINGS ====================
 debug:
+  # Master toggle for debug mode
   enabled: false
-  # Log event lifecycle (start, stop, winner detection)
+
+  # Individual debug categories
   log-events: true
-  # Log player actions (join, leave, death)
   log-players: true
-  # Log team assignments and changes
   log-teams: true
-  # Log border shrinking
   log-border: true
-  # Log kit distribution
   log-kits: true
-  # Log GUI interactions
   log-gui: true
+  log-commands: true
+  log-spectators: true

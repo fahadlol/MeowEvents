@@ -1,0 +1,43 @@
+# MeowMCEvents Logging Configuration
+# All logs are written to console and stored in plugins/MeowMCEvents/logs/
+
+logging:
+  # Enable/disable logging categories
+  enabled: true
+
+  # Log to file (plugins/MeowMCEvents/logs/meowevents.log)
+  file-logging: true
+
+  # Log levels: ERROR, WARN, INFO, DEBUG
+  level: INFO
+
+  # Specific category logging
+  categories:
+    # Event lifecycle (start, stop, countdown, winner)
+    events: true
+
+    # Player actions (join, leave, death, respawn)
+    players: true
+
+    # Team operations (assign, balance, clear)
+    teams: true
+
+    # Spectator system
+    spectators: true
+
+    # Command execution
+    commands: true
+
+    # Forcestart specific logging
+    forcestart: true
+
+    # Error tracking (always recommended to keep true)
+    errors: true
+
+# Error notification settings
+errors:
+  # Show stack traces in console
+  show-stacktrace: true
+
+  # Broadcast errors to admins with meowevent.admin permission
+  notify-admins: false

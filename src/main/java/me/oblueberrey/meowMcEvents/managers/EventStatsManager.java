@@ -1,12 +1,15 @@
 package me.oblueberrey.meowMcEvents.managers;
 
 import me.oblueberrey.meowMcEvents.MeowMCEvents;
+import me.oblueberrey.meowMcEvents.utils.MessageUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Tracks event statistics including placements and kills
@@ -15,17 +18,17 @@ public class EventStatsManager {
 
     private final MeowMCEvents plugin;
 
-    // Death order tracking - first UUID in list died first (last place)
-    private final List<UUID> deathOrder = new ArrayList<>();
+    // Thread-safe death order tracking - first UUID in list died first (last place)
+    private final List<UUID> deathOrder = new CopyOnWriteArrayList<>();
 
-    // Kill tracking - UUID -> kill count
-    private final Map<UUID, Integer> killCounts = new HashMap<>();
+    // Thread-safe kill tracking - UUID -> kill count
+    private final Map<UUID, Integer> killCounts = new ConcurrentHashMap<>();
 
-    // Player names cache (in case they disconnect)
-    private final Map<UUID, String> playerNames = new HashMap<>();
+    // Thread-safe player names cache (in case they disconnect)
+    private final Map<UUID, String> playerNames = new ConcurrentHashMap<>();
 
-    // Total players who started the event
-    private int totalParticipants = 0;
+    // Total players who started the event (volatile for visibility)
+    private volatile int totalParticipants = 0;
 
     public EventStatsManager(MeowMCEvents plugin) {
         this.plugin = plugin;
@@ -182,13 +185,23 @@ public class EventStatsManager {
 
     /**
      * Announce final rankings at event end
+     * Uses styled RGB colors and emojis (grey emojis, yellow/orange text)
      */
     public void announceRankings(UUID winnerUuid, boolean isTeamMode, int winningTeam, TeamManager teamManager) {
+        // Styled colors
+        String grey = "&8";
+        String yellow = "&e";
+        String orange = "&6";
+        String red = "&c";
+        String white = "&f";
+
+        // Key symbols
+        String star = "★";
+        String skull = "☠";
+        
+        String title = MessageUtils.colorize("&6&lFINAL STANDINGS");
         Bukkit.broadcastMessage("");
-        Bukkit.broadcastMessage(ChatColor.GOLD + "═══════════════════════════════════════");
-        Bukkit.broadcastMessage(ChatColor.GOLD + "" + ChatColor.BOLD + "         EVENT RESULTS");
-        Bukkit.broadcastMessage(ChatColor.GOLD + "═══════════════════════════════════════");
-        Bukkit.broadcastMessage("");
+        Bukkit.broadcastMessage(colorize(MessageUtils.center("&8★ " + title + " &8★")));
 
         // Announce placements
         List<UUID> placements = getPlacementsInOrder();
@@ -200,23 +213,23 @@ public class EventStatsManager {
             int kills = getKills(uuid);
 
             String prefix;
-            ChatColor color;
+            String color;
             switch (i) {
                 case 0:
-                    prefix = ChatColor.YELLOW + "" + ChatColor.BOLD + "  1st ";
-                    color = ChatColor.YELLOW;
+                    prefix = yellow + star + " 1st ";
+                    color = yellow;
                     break;
                 case 1:
-                    prefix = ChatColor.WHITE + "" + ChatColor.BOLD + "  2nd ";
-                    color = ChatColor.WHITE;
+                    prefix = white + "  2nd ";
+                    color = white;
                     break;
                 case 2:
-                    prefix = ChatColor.GOLD + "" + ChatColor.BOLD + "  3rd ";
-                    color = ChatColor.GOLD;
+                    prefix = orange + "  3rd ";
+                    color = orange;
                     break;
                 default:
-                    prefix = ChatColor.GRAY + "  " + (i + 1) + "th ";
-                    color = ChatColor.GRAY;
+                    prefix = grey + "  " + (i + 1) + "th ";
+                    color = grey;
                     break;
             }
 
@@ -224,37 +237,39 @@ public class EventStatsManager {
             if (isTeamMode && teamManager != null) {
                 int team = teamManager.getTeam(uuid);
                 if (team != -1) {
-                    ChatColor teamColor = teamManager.getTeamColor(team);
-                    teamInfo = " " + teamColor + "[Team " + team + "]";
+                    teamInfo = " " + grey + "(Team " + team + ")";
                 }
             }
 
-            Bukkit.broadcastMessage(prefix + color + name + ChatColor.DARK_GRAY + " - " +
-                    ChatColor.RED + kills + " kills" + teamInfo);
+            String killWord = (kills == 1) ? "kill" : "kills";
+            Bukkit.broadcastMessage(colorize(MessageUtils.center(prefix + color + name + grey + " - " +
+                    red + kills + " " + killWord + teamInfo)));
         }
 
         // Announce most kills if different from winner
-        Bukkit.broadcastMessage("");
         UUID mostKillsPlayer = getMostKillsPlayer();
         int mostKills = mostKillsPlayer != null ? getKills(mostKillsPlayer) : 0;
 
         if (mostKillsPlayer != null && mostKills > 0) {
             String mostKillsName = getPlayerName(mostKillsPlayer);
-            Bukkit.broadcastMessage(ChatColor.RED + "" + ChatColor.BOLD + "  MOST KILLS: " +
-                    ChatColor.WHITE + mostKillsName + ChatColor.GRAY + " with " +
-                    ChatColor.RED + mostKills + " kills!");
+            Bukkit.broadcastMessage("");
+            Bukkit.broadcastMessage(colorize(MessageUtils.center(grey + skull + " " + red + "Most Kills &f" + mostKillsName + " " + grey + "(" + red + mostKills + grey + ")")));
         }
 
-        Bukkit.broadcastMessage("");
-        Bukkit.broadcastMessage(ChatColor.GRAY + "  Total participants: " + ChatColor.WHITE + totalParticipants);
-        Bukkit.broadcastMessage("");
-        Bukkit.broadcastMessage(ChatColor.GOLD + "═══════════════════════════════════════");
+        Bukkit.broadcastMessage(colorize(MessageUtils.center("&7Total Participants: &f" + totalParticipants)));
         Bukkit.broadcastMessage("");
 
         // Play sound to all players
         for (Player player : Bukkit.getOnlinePlayers()) {
             player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.0f);
         }
+    }
+
+    /**
+     * Translate hex color codes (&#RRGGBB) to chat colors
+     */
+    private String colorize(String message) {
+        return MessageUtils.colorize(message);
     }
 
     /**

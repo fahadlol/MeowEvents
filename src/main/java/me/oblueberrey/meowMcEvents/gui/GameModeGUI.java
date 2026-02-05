@@ -2,8 +2,9 @@ package me.oblueberrey.meowMcEvents.gui;
 
 import me.oblueberrey.meowMcEvents.MeowMCEvents;
 import me.oblueberrey.meowMcEvents.managers.EventManager;
+import me.oblueberrey.meowMcEvents.utils.ButtonBuilder;
+import me.oblueberrey.meowMcEvents.utils.MessageUtils;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
@@ -12,17 +13,25 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.meta.ItemMeta;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class GameModeGUI implements Listener {
 
     private final MeowMCEvents plugin;
     private final EventManager eventManager;
-    public static final String GUI_TITLE = ChatColor.DARK_AQUA + "Select Game Mode";
+
+    // Improved RGB Colors
+    private static final String GREY = "&#AAAAAA";
+    private static final String YELLOW = "&#FFE566";
+    private static final String ORANGE = "&#FF9944";
+    private static final String RED = "&#FF5555";
+    private static final String GREEN = "&#55FF55";
+    private static final String GOLD = "&#FFE566";
+    private static final String AQUA = "&#55FFFF";
+    private static final String PINK = "&#FF7EB3";
+
+    public static final String GUI_TITLE = MessageUtils.colorize("&#666666\uD83D\uDCDD " + MessageUtils.gradient("Select Game Format", "#FF7EB3", "#FF9944", "#FFE566"));
     private static final AtomicBoolean listenerRegistered = new AtomicBoolean(false);
 
     public GameModeGUI(MeowMCEvents plugin, EventManager eventManager) {
@@ -34,125 +43,107 @@ public class GameModeGUI implements Listener {
     }
 
     public void openGUI(Player player) {
-        Inventory gui = Bukkit.createInventory(null, 27, GUI_TITLE);
+        Inventory gui = Bukkit.createInventory(null, 45, GUI_TITLE);
 
         int currentMode = eventManager.getTeamSize();
 
-        // Solo/FFA Mode (Slot 10)
-        gui.setItem(10, createModeItem(
+        // Decorative Border
+        fillBorder(gui);
+
+        // Solo/FFA Mode (Slot 19)
+        gui.setItem(19, createModeItem(
                 Material.IRON_SWORD,
-                ChatColor.RED + "" + ChatColor.BOLD + "SOLO (FFA)",
-                "Free-for-all battle royale",
+                RED + "Solo battle",
+                "Free-for-all combat.",
                 "Every player for themselves!",
-                "Last player standing wins.",
+                "Last one standing wins.",
                 1,
                 currentMode == 1
         ));
 
-        // 2v2 Mode (Slot 12)
-        gui.setItem(12, createModeItem(
+        // 2v2 Mode (Slot 21)
+        gui.setItem(21, createModeItem(
                 Material.LEATHER_CHESTPLATE,
-                ChatColor.GOLD + "" + ChatColor.BOLD + "2v2 TEAMS",
-                "Duo team battles",
-                "Fight alongside a partner!",
-                "Last team standing wins.",
+                ORANGE + "Duo teams",
+                "Two-player squad battles.",
+                "Fight alongside your partner!",
+                "Cooperation is key.",
                 2,
                 currentMode == 2
         ));
 
-        // 3v3 Mode (Slot 14)
-        gui.setItem(14, createModeItem(
+        // 3v3 Mode (Slot 23)
+        gui.setItem(23, createModeItem(
                 Material.IRON_CHESTPLATE,
-                ChatColor.YELLOW + "" + ChatColor.BOLD + "3v3 TEAMS",
-                "Trio team battles",
-                "Squad up with 2 allies!",
-                "Last team standing wins.",
+                YELLOW + "Trio teams",
+                "Three-player squad battles.",
+                "Squad up with two allies!",
+                "Dominance through teamwork.",
                 3,
                 currentMode == 3
         ));
 
-        // 4v4 Mode (Slot 16)
-        gui.setItem(16, createModeItem(
+        // 4v4 Mode (Slot 25)
+        gui.setItem(25, createModeItem(
                 Material.DIAMOND_CHESTPLATE,
-                ChatColor.AQUA + "" + ChatColor.BOLD + "4v4 TEAMS",
-                "Quad team battles",
-                "Form a 4-player squad!",
-                "Last team standing wins.",
+                GREEN + "Quad teams",
+                "Four-player squad battles.",
+                "Form the ultimate team!",
+                "Strategic squad play.",
                 4,
                 currentMode == 4
         ));
 
-        // Back Button (Slot 22)
-        gui.setItem(22, createBackButton());
-
-        // Fill empty slots
-        fillEmptySlots(gui);
+        // Back Button (Slot 40)
+        gui.setItem(40, createBackButton());
 
         player.openInventory(gui);
     }
 
-    private ItemStack createModeItem(Material material, String name, String desc1, String desc2, String desc3, int teamSize, boolean selected) {
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
+    private void fillBorder(Inventory gui) {
+        ItemStack border = new ButtonBuilder(Material.GRAY_STAINED_GLASS_PANE)
+                .name(" ")
+                .build();
+        ItemStack corner = new ButtonBuilder(Material.ORANGE_STAINED_GLASS_PANE)
+                .name(" ")
+                .build();
 
-        meta.setDisplayName(name);
-
-        List<String> lore = new ArrayList<>();
-        lore.add("");
-        lore.add(ChatColor.GRAY + desc1);
-        lore.add(ChatColor.GRAY + desc2);
-        lore.add(ChatColor.GRAY + desc3);
-        lore.add("");
-
-        if (teamSize == 1) {
-            lore.add(ChatColor.DARK_GRAY + "Mode: " + ChatColor.WHITE + "Solo (1v1v1...)");
-        } else {
-            lore.add(ChatColor.DARK_GRAY + "Team Size: " + ChatColor.WHITE + teamSize + " players");
-            lore.add(ChatColor.DARK_GRAY + "Format: " + ChatColor.WHITE + teamSize + "v" + teamSize);
+        for (int i = 0; i < gui.getSize(); i++) {
+            if (i < 9 || i >= 36 || i % 9 == 0 || (i + 1) % 9 == 0) {
+                if (i == 0 || i == 8 || i == 36 || i == 44) {
+                    gui.setItem(i, corner);
+                } else {
+                    gui.setItem(i, border);
+                }
+            }
         }
+    }
 
-        lore.add("");
+    private ItemStack createModeItem(Material material, String name, String desc1, String desc2, String desc3, int teamSize, boolean selected) {
+        ButtonBuilder builder = new ButtonBuilder(material)
+                .name(name)
+                .lore(GREY + desc1)
+                .addLore(GREY + desc2)
+                .addLore(GREY + desc3)
+                .addLore("")
+                .addLore(GREY + "Format: " + YELLOW + (teamSize == 1 ? "Solo (FFA)" : teamSize + "v" + teamSize))
+                .addLore("");
 
         if (selected) {
-            lore.add(ChatColor.GREEN + "" + ChatColor.BOLD + "CURRENTLY SELECTED");
+            builder.addLore(GREEN + "Currently selected")
+                   .glow(true);
         } else {
-            lore.add(ChatColor.YELLOW + "Click to select this mode");
+            builder.addLore(GOLD + "Click to select format.");
         }
 
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
+        return builder.build();
     }
 
     private ItemStack createBackButton() {
-        ItemStack item = new ItemStack(Material.ARROW);
-        ItemMeta meta = item.getItemMeta();
-        if (meta == null) return item;
-
-        meta.setDisplayName(ChatColor.RED + "" + ChatColor.BOLD + "BACK");
-
-        List<String> lore = new ArrayList<>();
-        lore.add(ChatColor.GRAY + "Return to main menu");
-
-        meta.setLore(lore);
-        item.setItemMeta(meta);
-        return item;
-    }
-
-    private void fillEmptySlots(Inventory gui) {
-        ItemStack filler = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
-        ItemMeta meta = filler.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName(" ");
-            filler.setItemMeta(meta);
-        }
-
-        for (int i = 0; i < gui.getSize(); i++) {
-            if (gui.getItem(i) == null) {
-                gui.setItem(i, filler);
-            }
-        }
+        return new ButtonBuilder(Material.ARROW)
+                .name(RED + "Back")
+                .lore(GREY + "Return to main menu")
+                .build();
     }
 
     @EventHandler
@@ -168,19 +159,19 @@ public class GameModeGUI implements Listener {
         int slot = event.getSlot();
 
         switch (slot) {
-            case 10: // Solo/FFA
+            case 19: // Solo/FFA
                 selectMode(player, 1, "Solo (FFA)");
                 break;
-            case 12: // 2v2
+            case 21: // 2v2
                 selectMode(player, 2, "2v2 Teams");
                 break;
-            case 14: // 3v3
+            case 23: // 3v3
                 selectMode(player, 3, "3v3 Teams");
                 break;
-            case 16: // 4v4
+            case 25: // 4v4
                 selectMode(player, 4, "4v4 Teams");
                 break;
-            case 22: // Back
+            case 40: // Back
                 player.closeInventory();
                 Bukkit.getScheduler().runTaskLater(plugin, () -> {
                     EventGUI eventGUI = new EventGUI(plugin, eventManager);
@@ -194,7 +185,7 @@ public class GameModeGUI implements Listener {
         eventManager.setTeamSize(teamSize);
 
         player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f);
-        player.sendMessage(ChatColor.GREEN + "Game mode set to: " + ChatColor.GOLD + modeName);
+        player.sendMessage(MessageUtils.format(ORANGE + "game format set to " + YELLOW + modeName));
 
         // Refresh GUI to show selection
         player.closeInventory();

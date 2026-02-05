@@ -1,6 +1,7 @@
 package me.oblueberrey.meowMcEvents.managers;
 
 import me.oblueberrey.meowMcEvents.MeowMCEvents;
+import me.oblueberrey.meowMcEvents.utils.MessageUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -44,6 +45,12 @@ public class BorderManager {
             return;
         }
 
+        // Check if border is enabled in config
+        if (!plugin.getConfigManager().isBorderEnabled()) {
+            debug("Border shrinking is disabled in config");
+            return;
+        }
+
         // Stop any existing task
         stopBorderShrink();
 
@@ -79,9 +86,12 @@ public class BorderManager {
                 border.setSize(currentSize, shrinkInterval);
 
                 // Broadcast message
-                String message = plugin.getConfigManager().getMessage("border-shrink")
-                        .replace("%size%", String.valueOf(currentSize));
-                Bukkit.broadcastMessage(ChatColor.translateAlternateColorCodes('&', message));
+                String sizeStr = currentSize + "x" + currentSize;
+                String borderTitle = MessageUtils.gradient("BORDER SHRINK", "#FF5555", "#FF9944");
+                plugin.getEventFeedback().broadcastSmallAnnouncement(
+                        "&#666666\u26A0 " + borderTitle + " &#666666\u26A0",
+                        "&#FF9944New bounds: &#FFE566" + sizeStr
+                );
 
                 debug("Border shrinking: " + previousSize + " -> " + currentSize);
             } else {
