@@ -1,0 +1,16 @@
+node_modules/
+.env
+.env.local
+data/
+*.db
+*.log
+nul
+
+# Next.js site
+site/node_modules/
+site/.next/
+site/out/
+site/.env.local
+
+# Claude
+.claude/

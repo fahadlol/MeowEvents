@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>METiers – Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>METiers</h1>
+    <p>Ticket panel dashboard</p>
+    <a href="/logout" method="post" class="btn btn-ghost">Log out</a>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Select server</h2>
+      <p>Choose a server to manage ticket panels (max 50 per server).</p>
+      <select id="guildSelect" aria-label="Server">
+        <option value="">— Select server —</option>
+      </select>
+    </section>
+
+    <section class="card panels-section" id="panelsSection" hidden>
+      <div class="flex">
+        <h2>Panels</h2>
+        <button type="button" class="btn btn-primary" id="btnNewPanel">+ New panel</button>
+      </div>
+      <div id="panelsList"></div>
+    </section>
+
+    <section class="card form-section" id="formSection" hidden>
+      <h2 id="formTitle">New ticket panel</h2>
+      <form id="panelForm">
+        <label>Panel title</label>
+        <input type="text" id="panelTitle" placeholder="Support Tickets" maxlength="256">
+
+        <label>Description</label>
+        <textarea id="panelDescription" rows="2" placeholder="Click the button below to open a ticket."></textarea>
+
+        <label>Channel for panel message</label>
+        <select id="panelChannel" required></select>
+
+        <label>Role to ping when ticket opens</label>
+        <select id="panelRole" required></select>
+
+        <label>Category for ticket channels (optional)</label>
+        <select id="panelCategory">
+          <option value="">None</option>
+        </select>
+
+        <label>Button label</label>
+        <input type="text" id="panelButtonLabel" placeholder="Open Ticket" maxlength="80">
+
+        <label>Button emoji (optional)</label>
+        <input type="text" id="panelButtonEmoji" placeholder="e.g. 📩 or custom emoji ID" maxlength="32">
+
+        <label>Log channel (transcripts + events) (optional)</label>
+        <select id="panelLogChannel">
+          <option value="">None</option>
+        </select>
+
+        <label>Auto-close after days of no messages (0 = off)</label>
+        <input type="number" id="panelAutoCloseDays" placeholder="0" min="0" max="365" value="0">
+
+        <label>Embed color (optional, hex e.g. 5865f2 or #5865f2)</label>
+        <input type="text" id="panelEmbedColor" placeholder="5865f2" maxlength="7">
+
+        <label>Custom welcome message in ticket (optional)</label>
+        <textarea id="panelCustomMessage" rows="2" placeholder="Welcome! Staff will be with you shortly."></textarea>
+
+        <input type="hidden" id="panelEditId" value="">
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" id="panelSubmitBtn">Create panel</button>
+          <button type="button" class="btn btn-ghost" id="btnCancelForm">Cancel</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card" id="emptyState" hidden>
+      <p>No panels yet. Select a server and click “New panel”.</p>
+    </section>
+
+    <p class="hint" id="botOffline" hidden>Bot is offline. Start the bot to manage panels.</p>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

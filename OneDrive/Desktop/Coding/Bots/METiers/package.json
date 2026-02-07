@@ -1,0 +1,27 @@
+{
+  "name": "metiers",
+  "version": "1.0.0",
+  "description": "METiers — Discord bot + PvP ranking site",
+  "main": "bot/index.js",
+  "scripts": {
+    "bot": "node bot/index.js",
+    "web": "node web/server.js",
+    "site": "cd site && npm run dev",
+    "site:build": "cd site && npm run build",
+    "start": "concurrently \"npm run bot\" \"npm run web\"",
+    "dev:all": "concurrently \"npm run bot\" \"npm run site\"",
+    "dev": "concurrently \"npm run bot\" \"npm run site\"",
+    "test:sync": "node scripts/test-sync.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.6.0",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-session": "^1.18.1",
+    "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}
